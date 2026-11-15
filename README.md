@@ -153,7 +153,10 @@ English (from `../Guruvanikal English`):
   `NAMA_AI_URL`): Claude reads only the retrieved passages and writes short pointing lines. The page
   prints every cited passage from the data itself, drops any line without a valid citation, and
   replaces any line that carries quoted words not found letter for letter in a cited passage.
-  To update it, republish that file plus `public/data` as `data/`.
+  To update it, republish that file and `search.js`, plus `public/data` as `data/`.
+- Two copies are kept. The main one, linked from the site, is https://claude.ai/artifact/BhSVVcssy2ATWacwJfMb7E
+  (the namaarchive account). The first copy stays at https://claude.ai/artifact/61DJF7LcMHVP1kWuYi8No3
+  (the other account). Both must be shared publicly from claude.ai for visitors to open them.
 
 ## Files
 

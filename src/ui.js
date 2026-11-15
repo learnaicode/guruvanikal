@@ -8,7 +8,9 @@ const GVS = self.GVSearch;
 // character for character, with their source ID. Nothing here composes or paraphrases them.
 
 // Set this to the address of the NAMA artifact once it is published.
-export const NAMA_AI_URL = 'https://claude.ai/artifact/61DJF7LcMHVP1kWuYi8No3';
+// The main NAMA (from 2026-11-15). A second, older copy also stays live at
+// https://claude.ai/artifact/61DJF7LcMHVP1kWuYi8No3 in the other Claude account.
+export const NAMA_AI_URL = 'https://claude.ai/artifact/BhSVVcssy2ATWacwJfMb7E';
 
 const $ = (s, r = document) => r.querySelector(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
