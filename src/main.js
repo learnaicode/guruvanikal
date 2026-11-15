@@ -17,6 +17,7 @@ import { G, LOW, createSky, FinalShader, PassageShader } from './gl.js';
 import { buildRealms } from './realms.js';
 import { createSeed } from './seed.js';
 import { createLotus } from './lotus.js';
+import { createCosmos } from './cosmos.js';
 import { DB, loadCore } from './data.js';
 import { initUI, NAMA_AI_URL } from './ui.js';
 import { createSound, STATES, stateName } from './sound.js';
@@ -36,7 +37,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, LOW ? 1.25 : 1.75));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(FOV, innerWidth / innerHeight, 0.1, 4000);
+const camera = new THREE.PerspectiveCamera(FOV, innerWidth / innerHeight, 0.1, 9000);
 const sky = createSky();
 scene.add(sky);
 
@@ -83,7 +84,12 @@ const S = { dir: 'out', p: 0, tp: 0, mode: 'intro', auto: false, hold: 0, last: 
 // the passage in progress: t runs from 1 to 0; dir +1 closes the old world into the centre, -1 opens the new one from it
 const X = { t: 0, dir: 1, sec: 2.6 };
 let shown = null, lw = 0, tun = 0;
-let white = localStorage.getItem('gv-space') !== 'dark';      // the space around the lotus
+// the space around the lotus: cosmos (the stars, the rashis and nakshatras), white, or dark
+const SPACES = ['cosmos', 'white', 'dark'];
+let space = SPACES.includes(localStorage.getItem('gv-space')) ? localStorage.getItem('gv-space') : 'cosmos';
+let white = space === 'white';
+let cosmos = null;
+let rotate = localStorage.getItem('gv-rotate') !== 'off';     // the slow turning of the view at the lotus
 const T = () => tracks[S.dir];
 const LAST = () => T().length - 1;                       // the Light
 const controls = new OrbitControls(camera, canvas);
@@ -91,7 +97,15 @@ controls.enabled = false; controls.enableDamping = true; controls.dampingFactor 
 controls.minDistance = 14; controls.maxDistance = 330; controls.maxPolarAngle = 1.46; controls.enablePan = false;
 controls.rotateSpeed = 0.5; controls.zoomSpeed = 0.7;
 const far = () => (camera.aspect < 1 ? 1.75 : 1);
-const HOME = () => ({ pos: new THREE.Vector3(0, 66 * far(), 124 * far()), tgt: new THREE.Vector3(0, 3, 0) });
+const HOME = () => (space === 'cosmos'
+  ? { pos: new THREE.Vector3(0, 40 * far(), 150 * far()), tgt: new THREE.Vector3(0, 6, 0) }     // lower, so the ring of the zodiac rises behind the lotus
+  : { pos: new THREE.Vector3(0, 66 * far(), 124 * far()), tgt: new THREE.Vector3(0, 3, 0) });
+// in the cosmos the seeker may travel far out among the stars and all around the lotus
+function setFreedom() {
+  const c = space === 'cosmos';
+  controls.maxDistance = c ? 1500 : 330; controls.maxPolarAngle = c ? Math.PI - 0.05 : 1.46; controls.enablePan = c;
+  controls.autoRotate = rotate; controls.autoRotateSpeed = 0.28;
+}
 
 // Arriving: we come out of the light at the centre of the lotus, rise from the opening bud and draw
 // back until the whole lotus is seen in white space. It ends exactly where HOME is.
@@ -170,14 +184,15 @@ function begin(dir, at) {
 }
 function arrive() {
   S.mode = 'lotus'; S.auto = false; S.p = S.tp = LAST() + 1;
-  const h = HOME(); camera.up.set(0, 1, 0); camera.position.copy(h.pos); controls.target.copy(h.tgt); controls.enabled = true; controls.update();
+  const h = HOME(); camera.up.set(0, 1, 0); camera.position.copy(h.pos); controls.target.copy(h.tgt); setFreedom(); controls.enabled = true; controls.update();
+  museAt = performance.now() + 20000;
   $('#bar').hidden = false; $('#legend').hidden = false; $('#copy').hidden = false; $('#hud').hidden = true;
   $('#legend').style.opacity = 1;
   setTimeout(() => { $('#legend').style.transition = 'opacity 2s'; $('#legend').style.opacity = 0; }, 14000);
 }
 function leaveLotus() {
   S.mode = 'journey'; controls.enabled = false; ui.closeAll(); lotus.hover(null); lotus.select(null);
-  $('#bar').hidden = true; $('#legend').hidden = true; $('#copy').hidden = true; $('#hud').hidden = false; fly = null;
+  $('#bar').hidden = true; $('#legend').hidden = true; $('#copy').hidden = true; $('#hud').hidden = false; fly = null; muse.classList.remove('on');
 }
 
 // ------------------------------------------------------------------ travelling
@@ -287,6 +302,7 @@ function frame() {
   moveSky(1 - Math.exp(-dt * 2.2));
   groups.forEach((g) => { g.visible = g === R.group; });
   if (lotus) lotus.group.visible = k === last;
+  if (cosmos) cosmos.group.visible = k === last && space === 'cosmos';
   if (R !== S.last) {
     S.last = R; camera.up.set(0, 1, 0); S.sayAt = -1;
     if (S.mode === 'journey') announce(k);
@@ -299,8 +315,10 @@ function frame() {
       camera.position.lerpVectors(fly.p0, fly.p1, e); controls.target.lerpVectors(fly.t0, fly.t1, e);
       if (fly.t >= 1) fly = null;
     }
+    controls.autoRotate = rotate && !fly && reader.hidden && side.hidden;    // be still while someone reads
     controls.update();
     lotus.setBloom(1);
+    museTick();
   } else if (k === last) lotusPath(u, camera);
   else if (k === 0) seed.update(u, camera, S.mode === 'intro' ? 0 : S.dir === 'out' ? 1 : -1, far());
   else {
@@ -346,12 +364,32 @@ requestAnimationFrame(frame);
 
 // ------------------------------------------------------------------ white or dark space around the lotus
 $('#speak').href = NAMA_AI_URL;
-function setSpaceBtn() { $('#space').textContent = white ? '☾ Dark space' : '☀ White space'; }
+const SPACE_NAME = { cosmos: '✦ Cosmos', white: '☀ White space', dark: '☾ Dark space' };
+function setSpaceBtn() { $('#space').textContent = SPACE_NAME[space]; $('#space').title = 'Space around the lotus: ' + SPACE_NAME[space].slice(2) + ' (touch to change)'; }
 $('#space').onclick = () => {
-  white = !white; localStorage.setItem('gv-space', white ? 'white' : 'dark');
-  lotus.setSpace(white); setSpaceBtn();
-  if (T()[Math.floor(S.p)] === lotus || S.mode === 'lotus') applySky(lotus.sky);
+  space = SPACES[(SPACES.indexOf(space) + 1) % SPACES.length]; white = space === 'white';
+  localStorage.setItem('gv-space', space);
+  lotus.setSpace(space); setSpaceBtn(); setFreedom();
+  if (S.mode === 'lotus') { applySky(lotus.sky); const h = HOME(); flyTo(h.pos, h.tgt, 2.4); }
+  else if (T()[Math.floor(S.p)] === lotus) applySky(lotus.sky);
 };
+function setRotBtn() { $('#rot').textContent = rotate ? '⟳ Turning' : '⟳ Still'; $('#rot').classList.toggle('on', rotate); }
+$('#rot').onclick = () => { rotate = !rotate; localStorage.setItem('gv-rotate', rotate ? 'on' : 'off'); setRotBtn(); setFreedom(); };
+setRotBtn();
+
+// ------------------------------------------------------------------ at the lotus, now and then, one of the sayings
+const muse = $('#muse'), reader = $('#reader'), side = $('#side');
+let museAt = Infinity, museOff = 0;
+function museTick() {
+  const now = performance.now();
+  if (muse.classList.contains('on') && now > museOff) { muse.classList.remove('on'); museAt = now + 40000; }
+  if (now < museAt || !DB.sayings) return;
+  if (!reader.hidden || !side.hidden) { museAt = now + 15000; return; }
+  const short = DB.sayings.items.filter((it) => it.text.length < 170 && !it.text.includes('\n'));
+  const it = short[(Math.random() * short.length) | 0];
+  muse.children[0].textContent = it.text; muse.children[1].textContent = `Guruvani · saying ${it.i}`;
+  muse.classList.add('on'); museOff = now + 18000; museAt = Infinity;
+}
 
 // ------------------------------------------------------------------ the words
 $('#out').onclick = () => begin('out');
@@ -360,8 +398,9 @@ $('#goOut').onclick = () => begin('out');
 $('#goIn').onclick = () => begin('in');
 loadCore().then(() => {
   lotus = createLotus(DB.index, DB.nSay);
-  lotus.setSpace(white); setSpaceBtn();
+  lotus.setSpace(space); setSpaceBtn();
   lotus.group.visible = false; scene.add(lotus.group);
+  document.fonts.load('600 40px "Noto Serif Malayalam"').catch(() => {}).then(() => { cosmos = createCosmos(); cosmos.group.visible = false; scene.add(cosmos.group); });
   tracks.out.push(lotus); tracks.in.push(lotus);
   ui = initUI(api);
   $('#count').textContent = `${DB.index.total.toLocaleString('en-IN')} Guruvanis · ${DB.nSay.toLocaleString('en-IN')} sayings · 1977 to 2006`;
@@ -371,5 +410,5 @@ loadCore().then(() => {
   const dir = params.get('path') === 'in' ? 'in' : 'out';
   if (params.has('t')) { S.muted = true; begin(dir, Number(params.get('t'))); S.auto = false; S.hold = 1e9; }
   if (params.has('lotus')) { S.muted = true; begin(dir, LAST() + 0.9); }
-  window.gv = { S, X, lotus, camera, controls, ui, jumpTo, begin, sound };
+  window.gv = { S, X, lotus, camera, controls, ui, jumpTo, begin, sound, get cosmos() { return cosmos; } };
 }).catch((err) => { $('#count').textContent = 'The Guruvanis could not be loaded'; console.error(err); });

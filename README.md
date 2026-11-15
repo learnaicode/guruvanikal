@@ -53,6 +53,19 @@ are not copied. It is meant to soothe and makes no medical claim.
 
 These worlds are a visual path only. They do not sort or interpret the Guru's words.
 
+## Around the lotus
+
+The **✦ Cosmos / ☀ White space / ☾ Dark space** button chooses the space around the lotus (the choice is
+remembered). Cosmos is the default: the lotus floats at the centre of a deep blue sky with the real stars
+of the twelve rashis (മേടം to മീനം, with their figures) and the yogataras of the twenty-seven nakshatras
+(അശ്വതി to രേവതി), placed by their right ascension and declination and turned so that the ecliptic is a
+ring around the lotus, with the twelve 30° houses of the sidereal zodiac marked on it. The Milky Way and
+thousands of fainter stars lie behind them at many depths (`src/cosmos.js`). In the cosmos one can drag,
+pinch and pan far out among the stars and all around the lotus.
+
+The view turns slowly by itself; **⟳ Turning / ⟳ Still** stops or starts it, and it pauses while
+someone reads. Now and then one of the 1,001 sayings rises quietly at the bottom of the screen.
+
 ## What is in the lotus
 
 | Part | Holds |
@@ -100,5 +113,5 @@ English (from `../Guruvanikal English`):
 
 ## Files
 
-- `src/seed.js` the 3D mark · `src/realms.js` the nine worlds · `src/lotus.js` the lotus · `src/gl.js` shared shaders
+- `src/seed.js` the 3D mark · `src/realms.js` the nine worlds · `src/lotus.js` the lotus · `src/cosmos.js` the stars around it · `src/gl.js` shared shaders
 - `src/ui.js` reader, years, search, NAMA · `src/data.js` loading · `src/sound.js` the drone

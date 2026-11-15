@@ -17,6 +17,7 @@ const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 const SKY = {
   white: { top: [2.15, 2.15, 2.2], bot: [2.2, 2.12, 2.06], glow: [0, 0, 0], dir: [0, 1, 0], stars: 0, milk: 0, aur: 0, floor: 1 },
   dark: { top: [0.004, 0.003, 0.02], bot: [0.03, 0.012, 0.05], glow: [0.35, 0.2, 0.4], dir: [0, 1, -0.2], stars: 1, milk: 0.7, aur: 0, floor: 0.35 },
+  cosmos: { top: [0.002, 0.006, 0.03], bot: [0.006, 0.016, 0.06], glow: [0.04, 0.07, 0.18], dir: [0, 1, 0], stars: 0, milk: 0, aur: 0, floor: 0.8 },
 };
 const SPREAD = 0.5, OFFSET = 46;
 
@@ -260,9 +261,10 @@ export function createLotus(index, nSay) {
   return {
     group, petals, COUNT, RIM, yearMeshes,
     name: 'The Light', sub: 'where the Guru resides', scale: 'beyond measure', beat: 0, band: 'OM',
-    get sky() { return W.value > 0.5 ? SKY.white : SKY.dark; },
-    get white() { return W.value > 0.5; },
-    setSpace(white) { W.value = white ? 1 : 0; yearMeshes.forEach((mm) => mm.userData.label.material.color.set(white ? 0x8c1440 : 0xfff0d2)); },
+    space: 'white',
+    get sky() { return SKY[this.space]; },
+    // white: the lotus in white space · dark: on dark water · cosmos: floating among the stars
+    setSpace(mode) { this.space = mode; W.value = mode === 'white' ? 1 : 0; water.visible = mode !== 'cosmos'; motes.visible = mode !== 'cosmos'; yearMeshes.forEach((mm) => mm.userData.label.material.color.set(mode === 'white' ? 0x8c1440 : 0xfff0d2)); },
     veil: [1.9, 1.75, 1.5],
     setBloom(b) { uni.uBloom.value = b; },
     hover(i) { uni.uHover.value = i == null ? -10 : i; },
