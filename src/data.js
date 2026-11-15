@@ -3,10 +3,11 @@
 
 export const DB = { index: null, sayings: null, years: new Map(), nSay: 0, all: false };
 // The words are kept in their own repository (github.com/learnaicode/guruvanikal-data), pinned to one
-// exact version, and served by the jsDelivr CDN. While developing, the local copy in public/data is used.
+// exact version, and served by the jsDelivr CDN. On localhost while developing, the local copy in public/data is used.
 // After `npm run data`, push the new data there and put its commit here.
 export const DATA_VERSION = '036599ee532ee81f53c759341f6f8cbd63c369e3';
-const BASE = import.meta.env.DEV ? new URL('data/', document.baseURI).href : `https://cdn.jsdelivr.net/gh/learnaicode/guruvanikal-data@${DATA_VERSION}/data/`;
+const LOCAL = import.meta.env.DEV && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+const BASE = LOCAL ? new URL('data/', document.baseURI).href : `https://cdn.jsdelivr.net/gh/learnaicode/guruvanikal-data@${DATA_VERSION}/data/`;
 const url = (p) => BASE + p;
 
 export async function loadCore() {

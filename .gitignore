@@ -5,3 +5,4 @@ dist
 # the words live in github.com/learnaicode/guruvanikal-data (see src/data.js)
 public/data
 english-text
+.claude
