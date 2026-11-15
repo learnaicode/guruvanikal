@@ -1,0 +1,23 @@
+{
+  "name": "guruvanikal",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Guruvanikal: the complete words of Navajyothi Sree Karunakara Guru, held in one lotus. An offering by Gurudath Sadanandan and NAMA.",
+  "scripts": {
+    "data": "node tools/build-data.mjs",
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@fontsource/cormorant-garamond": "^5.3.0",
+    "@fontsource/noto-serif-malayalam": "^5.3.0",
+    "three": "0.186.1",
+    "vite": "8.3.4"
+  },
+  "dependencies": {
+    "@fontsource/nunito": "^5.3.0"
+  },
+  "author": "Gurudath Sadanandan and NAMA"
+}
