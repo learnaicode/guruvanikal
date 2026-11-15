@@ -1,3 +1,7 @@
 node_modules
 dist
 .DS_Store
+
+# the words live in github.com/learnaicode/guruvanikal-data (see src/data.js)
+public/data
+english-text

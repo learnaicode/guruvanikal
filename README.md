@@ -64,6 +64,11 @@ These worlds are a visual path only. They do not sort or interpret the Guru's wo
 
 ## The words: `npm run data`
 
+The data is not kept in this repository. It lives in
+[learnaicode/guruvanikal-data](https://github.com/learnaicode/guruvanikal-data), pinned by commit in
+`src/data.js` and served by jsDelivr; the plain-text English is there too, in `english-text/`. The
+dev server uses the local `public/data` produced by `npm run data`.
+
 `tools/build-data.mjs` reads the canonical extraction in
 `../GURUVANIKAL_PORTABLE_COMPLETE_2026-07-12` and the English renderings in `../Guruvanikal English`,
 and writes `public/data`. It stops with an error unless:
