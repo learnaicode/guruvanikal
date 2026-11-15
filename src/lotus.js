@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { G, NOISE, AURORA, createPoints, petalGeometry } from './gl.js';
+import { LOW } from './gl.js';
+import { G, NOISE, AURORA, createPoints, petalGeometry, lotusPetalGeometry } from './gl.js';
 
 // The Light: the lotus that holds every Guruvani.
 //
@@ -8,7 +9,8 @@ import { G, NOISE, AURORA, createPoints, petalGeometry } from './gl.js';
 //   the golden crown ................. the 1,001 sayings
 //   the white petals ................. all 7,955 paragraphs of the Guruvanikal, in the order of the
 //                                      books, flowing outward from 1977 to 2006 (each year a ring)
-//   the 30 great petals .............. the 30 years; each opens its months and talks
+//   the great white petals ........... four whorls, as on a white lotus. The 30 of the innermost whorl
+//                                      are the 30 years; each opens its months and talks
 //
 // The lotus rests in white space without edge or horizon.
 // Petals follow the golden angle, the way a lotus head arranges its seeds.
@@ -76,9 +78,9 @@ export function createLotus(index, nSay) {
         float fall = 1.0 / (1.0 + vR*0.028);
         float fr = pow(1.0 - max(dot(N, V), 0.0), 2.5);
         float depth = mix(0.3, 1.0, smoothstep(0.0, 0.85, along));                // shade where petals overlap
-        vec3 c = base*vein*depth*(0.07 + dif*(0.2 + 0.4*fall)) + vec3(1.0, 0.86, 0.7)*fr*0.14;
+        vec3 c = base*vein*depth*(0.16 + dif*(0.34 + 0.4*fall)) + vec3(1.0, 0.86, 0.7)*fr*0.14;
         c += base * smoothstep(0.55, 1.0, along) * 0.12;                 // tips hold a little light
-        c = mix(c*1.15 + base*0.03, c*1.7 + base*mix(vec3(0.4, 0.13, 0.24), vec3(0.2), smoothstep(0.0, 0.8, along)), uWhite);   // white space lights them from everywhere
+        c = mix(c*1.15 + base*0.03, c*1.25 + base*mix(vec3(0.4, 0.13, 0.24), vec3(0.2), smoothstep(0.0, 0.8, along)), uWhite);   // white space lights them from everywhere
         c = mix(c, c*0.3, vHas*(1.0 - vSel));
         c += vec3(1.0, 0.6, 0.15) * vSel * (0.7 + 0.3*sin(uTime*2.0));
         c = mix(c, vec3(3.2, 1.7, 0.35), vHov);
@@ -111,59 +113,79 @@ export function createLotus(index, nSay) {
   petals.frustumCulled = false;
   group.add(petals);
 
-  // ---------- the 30 great petals of the years ----------
-  const big = petalGeometry(16, 32);
-  const yearMeshes = [];
-  const bigMat = (kind) => new THREE.ShaderMaterial({
-    side: THREE.DoubleSide, transparent: kind === 1, depthWrite: true,
-    uniforms: { uTime: G.uTime, uOn: { value: 0 }, uBloom: uni.uBloom, uBack: { value: kind }, uWhite: W },
-    vertexShader: /* glsl */ `uniform float uTime, uBloom, uOn; varying vec2 vUv; varying vec3 vN, vW;
+  // ---------- the great white petals ----------
+  // Four whorls of broad, cupped petals, each whorl larger and more open than the one inside it and
+  // set in the gaps of the one before, as on a living lotus. They overlap from base to shoulder, so
+  // the flower is closed all the way round. The innermost whorl carries the years.
+  const big = lotusPetalGeometry(LOW ? 12 : 18, LOW ? 24 : 36);
+  const yearMeshes = [], whorls = [];
+  const bigMat = (ring) => new THREE.ShaderMaterial({
+    side: THREE.DoubleSide,
+    uniforms: { uTime: G.uTime, uOn: { value: 0 }, uBloom: uni.uBloom, uRing: { value: ring }, uWhite: W },
+    vertexShader: /* glsl */ `uniform float uTime, uBloom, uOn, uRing; varying vec2 vUv; varying vec3 vN, vW;
       void main(){
         vUv = uv; vec3 p = position;
-        float b = smoothstep(0.35, 1.0, uBloom);
-        float ex = (1.0 - b)*0.9 + sin(uTime*0.4 + modelMatrix[3].x)*0.025*uv.y + uOn*0.12;
+        float b = smoothstep(0.3 + uRing*0.05, 0.86 + uRing*0.045, uBloom);      // the inner whorls open first
+        float ex = (1.0 - b)*(1.05 - uRing*0.1) + sin(uTime*0.4 + modelMatrix[3].x)*0.02*uv.y + uOn*0.1;
         float cs = cos(ex), sn = sin(ex); p.xy = vec2(p.x*cs - p.y*sn, p.x*sn + p.y*cs);
-        vec4 wp = modelMatrix*vec4(p, 1.0); vW = wp.xyz; vN = normalize(mat3(modelMatrix)*normal);
+        vec3 n = normal; n.xy = vec2(n.x*cs - n.y*sn, n.x*sn + n.y*cs);
+        vec4 wp = modelMatrix*vec4(p, 1.0); vW = wp.xyz; vN = normalize(mat3(modelMatrix)*n);
         gl_Position = projectionMatrix*viewMatrix*wp;
       }`,
-    fragmentShader: /* glsl */ `uniform float uTime, uOn, uBack, uWhite; varying vec2 vUv; varying vec3 vN, vW;
+    fragmentShader: /* glsl */ `uniform float uTime, uOn, uRing, uWhite; varying vec2 vUv; varying vec3 vN, vW;
       void main(){
-        vec3 N = normalize(vN); vec3 V = normalize(cameraPosition - vW); if (dot(N, V) < 0.0) N = -N;
-        float along = vUv.y;
-        vec3 base = mix(vec3(0.5, 0.2, 0.42), vec3(1.0, 0.93, 0.95), smoothstep(0.0, 0.75, along));
-        base = mix(base, vec3(1.0, 0.62, 0.74), smoothstep(0.7, 1.0, along)*0.45);
-        base = mix(base, base*vec3(0.5, 0.42, 0.75), uBack);
-        float vein = 0.9 + 0.1*pow(abs(sin((vUv.x - 0.5)*46.0)), 0.6);
-        vec3 L = normalize(vec3(0.0, 14.0, 0.0) - vW);
-        float dif = max(dot(N, L), 0.0)*0.65 + 0.35;
-        float fr = pow(1.0 - max(dot(N, V), 0.0), 2.2);
-        vec3 c = base*vein*dif*mix(0.5, 1.25, uWhite) + vec3(1.0, 0.8, 0.75)*fr*mix(0.25, 0.4, uWhite);
-        c += vec3(1.0, 0.6, 0.15)*uOn*(0.6 + 0.6*along);
+        vec3 N = normalize(vN); vec3 V = normalize(cameraPosition - vW); float facing = dot(N, V); if (facing < 0.0) N = -N;
+        float along = vUv.y, across = abs(vUv.x - 0.5)*2.0;
+        // a white lotus: pearl white, warm where the light of the centre falls at its base, the faintest rose at its point
+        vec3 base = mix(vec3(1.0, 0.9, 0.74), vec3(1.0, 0.985, 0.975), smoothstep(0.0, 0.42, along));
+        base = mix(base, vec3(1.0, 0.84, 0.89), smoothstep(0.6, 1.0, along)*0.42);
+        base *= mix(vec3(1.0), vec3(0.93, 0.95, 1.0), uRing*0.3);                        // the outer whorls a breath cooler
+        float vein = 1.0 - 0.07*pow(abs(sin((vUv.x - 0.5)*(26.0 + 30.0*along))), 3.0)*smoothstep(0.02, 0.3, along);
+        vec3 L = normalize(vec3(0.0, 16.0, 0.0) - vW);
+        float dif = max(dot(N, L), 0.0);
+        float through = pow(max(dot(-N, L), 0.0), 1.5)*0.35;                             // light passing through the petal
+        float sh = 0.5 + 0.4*dif + through;
+        sh *= 1.0 - 0.42*smoothstep(0.34, 0.0, along)*(1.0 - across*0.4);
+        sh *= 0.9 + 0.1*smoothstep(0.0, 0.7, across);                                    // the midrib lies a little deeper                 // shade deep in the cup, where petals meet
+        sh *= 1.0 - 0.1*uRing;
+        float fr = pow(1.0 - abs(facing), 2.6);
+        vec3 c = base*vein*sh*mix(0.82, 1.2, uWhite) + vec3(1.0, 0.95, 0.9)*fr*mix(0.16, 0.3, uWhite);
+        c += vec3(1.0, 0.92, 0.85)*smoothstep(0.82, 1.0, across)*0.05;                   // a fine bright edge
+        c += vec3(1.0, 0.6, 0.15)*uOn*(0.35 + 0.5*along);
         gl_FragColor = vec4(c, 1.0);
       }`,
   });
   const NY = index.years.length;
-  for (let ring = 0; ring < 2; ring++) {
-    for (let k = 0; k < NY; k++) {
-      const th = ((k + ring * 0.5) / NY) * Math.PI * 2 - Math.PI / 2;
-      const r = RIM + 1.5 + ring * 3, L = ring ? 31 : 22;
+  //            count, base radius, length, lift, width, height
+  const WHORL = [[NY, RIM - 3.5, 24, 0.5, 0.62, 0.2], [NY, RIM - 1.5, 32, 0.33, 0.6, -1.5], [20, RIM + 0.5, 40, 0.17, 0.64, -3.4], [15, RIM + 1.5, 46, 0.04, 0.7, -5.2]];
+  WHORL.forEach(([n, r, L, lift, wide, dy], ring) => {
+    for (let k = 0; k < n; k++) {
+      const th = ((k + (ring % 2) * 0.5) / n) * Math.PI * 2 - Math.PI / 2;
       const mesh = new THREE.Mesh(big, bigMat(ring));
-      mesh.position.set(Math.cos(th) * r, 0.0026 * r * r - 1 - ring * 2.5, Math.sin(th) * r);
-      qy.setFromAxisAngle(Y, -th); qz.setFromAxisAngle(Z, ring ? 0.3 : 0.56);
+      mesh.position.set(Math.cos(th) * r, 0.0026 * r * r + dy, Math.sin(th) * r);
+      qy.setFromAxisAngle(Y, -th); qz.setFromAxisAngle(Z, lift);
       mesh.quaternion.copy(qy).multiply(qz);
-      mesh.scale.set(L, L, L * (ring ? 1.25 : 1.3));
-      group.add(mesh);
+      mesh.scale.set(L, L, L * wide);
+      group.add(mesh); whorls.push(mesh);
       if (ring === 0) {
         mesh.userData.year = k;
         yearMeshes.push(mesh);
         const label = yearLabel(index.years[k].y);
-        const tr = r + L * 0.9;
-        label.position.set(Math.cos(th) * tr, mesh.position.y + L * 0.62, Math.sin(th) * tr);
+        const tr = r + L * (Math.cos(lift) - 0.25 * Math.sin(lift)) * 1.03;                 // just beyond the point of the petal
+        label.position.set(Math.cos(th) * tr, mesh.position.y + L * (Math.sin(lift) + 0.25 * Math.cos(lift)) + 2.4, Math.sin(th) * tr);
         mesh.userData.label = label;
         group.add(label);
       }
     }
-  }
+  });
+  // the receptacle: the pale body of the flower under the small petals, so that nothing shows between them
+  const bowlPts = []; for (let i = 0; i <= 24; i++) { const r = (i / 24) * (RIM + 1); bowlPts.push(new THREE.Vector2(r, 0.0026 * r * r - 0.7)); }
+  const bowl = new THREE.Mesh(new THREE.LatheGeometry(bowlPts, 96), new THREE.ShaderMaterial({
+    side: THREE.DoubleSide, uniforms: { uWhite: W },
+    vertexShader: 'varying float vR; void main(){ vR = length(position.xz); gl_Position = projectionMatrix*modelViewMatrix*vec4(position, 1.0); }',
+    fragmentShader: 'uniform float uWhite; varying float vR; void main(){ vec3 c = mix(vec3(0.62, 0.5, 0.36), vec3(0.5, 0.47, 0.46), smoothstep(4.0, 30.0, vR)); gl_FragColor = vec4(c*mix(0.75, 2.0, uWhite), 1.0); }',
+  }));
+  group.add(bowl);
 
   // ---------- the light at the centre ----------
   // Light, and from very near a window into it: all the stars and universes are held inside.
@@ -266,7 +288,7 @@ export function createLotus(index, nSay) {
     // white: the lotus in white space · dark: on dark water · cosmos: floating among the stars
     setSpace(mode) { this.space = mode; W.value = mode === 'white' ? 1 : 0; water.visible = mode !== 'cosmos'; motes.visible = mode !== 'cosmos'; yearMeshes.forEach((mm) => mm.userData.label.material.color.set(mode === 'white' ? 0x8c1440 : 0xfff0d2)); },
     veil: [1.9, 1.75, 1.5],
-    setBloom(b) { uni.uBloom.value = b; },
+    setBloom(b) { uni.uBloom.value = b; const k = Math.min(1, Math.max(0, b * 1.7 - 0.7)), e = 0.3 + 0.7 * k * k * (3 - 2 * k); bowl.scale.set(e, 1, e); },
     hover(i) { uni.uHover.value = i == null ? -10 : i; },
     mark(i) { uni.uOne.value = i == null ? -10 : i; },
     select(a, b) { uni.uSelA.value = a == null ? -1 : a; uni.uSelB.value = b == null ? -1 : b; },

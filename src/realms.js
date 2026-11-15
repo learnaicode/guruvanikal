@@ -13,7 +13,7 @@ const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
 const ease = (t) => t * t * (3 - 2 * t);
 const lerp = THREE.MathUtils.lerp;
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
-const tA = V(), tB = V(), tC = V();
+const tA = V(), tB = V(), tC = V(), ORIGIN = V();
 
 const fresnelVert = 'varying vec3 vN, vV, vP; void main(){ vP = position; vec4 mv = modelViewMatrix*vec4(position,1.0); vV = -mv.xyz; vN = normalMatrix*normal; gl_Position = projectionMatrix*mv; }';
 
@@ -108,6 +108,8 @@ function earth() {
       globe.rotation.y = G.uTime.value * 0.004;
     },
     leave(cam) { cam.up.set(0, 1, 0); },
+    // travelling freely: touch the Earth anywhere to enter a living cell; leave it far behind to see the Sun's family
+    free: { u: 0.8, outer: 700, door: () => ORIGIN, doorR: R + 0.6, level: false },
   };
 }
 
@@ -163,8 +165,10 @@ function solar() {
       cam.position.lerpVectors(tA, tB, e * e * (0.3 + 0.7 * e));
       tA.copy(E).lerp(tC.set(0, 0, 0), ease(Math.min(1, u * 1.7)));
       cam.lookAt(tA);
-      halo.quaternion.copy(cam.quaternion);
+      this.face(cam);
     },
+    face(cam) { halo.quaternion.copy(cam.quaternion); },
+    free: { u: 0.6, outer: 400, door: () => planets[2].m.position, doorR: 1.7 },
   };
 }
 
@@ -218,9 +222,11 @@ function galaxy() {
       cam.position.lerpVectors(tA, tB, e * (0.25 + 0.75 * e));
       tA.copy(home).lerp(tC.set(0, 0, 0), ease(Math.min(1, u * 1.5)));
       cam.lookAt(tA);
-      core.quaternion.copy(cam.quaternion); sunDot.quaternion.copy(cam.quaternion);
       sunDot.material.uniforms.uOpen.value = 1 - ease(Math.min(1, u * 2.2));
+      this.face(cam);
     },
+    face(cam) { core.quaternion.copy(cam.quaternion); sunDot.quaternion.copy(cam.quaternion); },
+    free: { u: 0, outer: 470, door: () => home, doorR: 3.2 },
   };
 }
 
@@ -243,6 +249,7 @@ function universe() {
   group.add(web);
   const source = createPortal([1.0, 0.86, 0.6], 1500, 0.12, 0);
   const holder = new THREE.Group(); holder.add(source);     // kept outside the turning web
+  const ours = createPortal([0.8, 0.85, 1.0], 6, 0.0, 0); holder.add(ours);      // our own galaxy, one light among them all
   return {
     name: 'Universe', sub: 'the web of all the galaxies', scale: '10²⁶ metres', beat: 2.5, band: 'delta',
     group: new THREE.Group().add(group, holder), sky: { top: [0.0, 0.0, 0.004], bot: [0.006, 0.002, 0.012], glow: [0.2, 0.12, 0.3], dir: [0, 0, -1], stars: 0.25, milk: 0 },
@@ -253,9 +260,12 @@ function universe() {
       cam.position.set(Math.sin(a) * d * 0.5 + 12, 8 + d * 0.16, Math.cos(a) * d);
       cam.lookAt(0, 0, 0);
       group.rotation.y = G.uTime.value * 0.006;
-      source.quaternion.copy(cam.quaternion); source.position.copy(cam.position).multiplyScalar(-0.75);
       source.material.uniforms.uOpen.value = ease(Math.max(0, (u - 0.5) / 0.5)) * 0.9;     // the universe is seen to rest in light
+      ours.material.uniforms.uOpen.value = 1 - ease(Math.min(1, u * 2.5));
+      this.face(cam);
     },
+    face(cam) { source.quaternion.copy(cam.quaternion); source.position.copy(cam.position).multiplyScalar(-0.75); ours.quaternion.copy(cam.quaternion); },
+    free: { u: 0, outer: 930, door: () => ORIGIN, doorR: 5 },
   };
 }
 
@@ -308,9 +318,11 @@ function multiverse() {
       cam.position.set(Math.sin(a) * d * 0.4, 2 + d * 0.14, Math.cos(a) * d);
       cam.lookAt(0, 0, 0);
       group.rotation.y = G.uTime.value * 0.004;
-      heart.quaternion.copy(cam.quaternion);
       heart.material.uniforms.uOpen.value = ease(Math.max(0, (u - 0.45) / 0.55)) * 0.8;      // all of them are gathered in one light
+      this.face(cam);
     },
+    face(cam) { heart.quaternion.copy(cam.quaternion); },
+    free: { u: 0.3, outer: 1200, door: () => ORIGIN, doorR: 13.5 },
   };
 }
 
@@ -377,6 +389,7 @@ function cell() {
       cam.lookAt(Math.sin(u * 3.2 + 0.5) * 3, 0, -D - 40);
       cam.rotateZ(Math.sin(u * 4) * 0.12);
     },
+    free: { u: 0.2, center: V(0, 0, -D / 2), outer: 340, door: () => nuc.position, doorR: 47.5 },
   };
 }
 
@@ -421,6 +434,7 @@ function dna() {
       cam.lookAt(0, 0, cam.position.z - 60);
       cam.rotateZ(u * 0.8);
     },
+    free: { u: 0.2, center: V(0, 0, -170), outer: 330, door: () => door.position, doorR: 11 },
   };
 }
 
@@ -458,8 +472,10 @@ function atom() {
       cam.position.set(Math.sin(a) * d, Math.sin(u * 3.1) * d * 0.25, Math.cos(a) * d);
       cam.lookAt(0, 0, 0);
       group.rotation.y = G.uTime.value * 0.03;
-      heart.quaternion.copy(cam.quaternion);
+      this.face(cam);
     },
+    face(cam) { heart.quaternion.copy(cam.quaternion); },
+    free: { u: 0.2, outer: 330, door: () => ORIGIN, doorR: 3 },
   };
 }
 
@@ -509,9 +525,11 @@ function nucleus() {
       cam.position.set(Math.sin(a) * d, Math.sin(u * 2.4) * d * 0.2, Math.cos(a) * d);
       cam.lookAt(0, 0, 0);
       group.rotation.y = G.uTime.value * 0.05;
-      source.quaternion.copy(cam.quaternion);
       source.material.uniforms.uOpen.value = ease(Math.max(0, (u - 0.35) / 0.65));          // between the particles there is only light
+      this.face(cam);
     },
+    face(cam) { source.quaternion.copy(cam.quaternion); },
+    free: { u: 0.7, outer: 150, door: () => ORIGIN, doorR: 0.9 },
   };
 }
 

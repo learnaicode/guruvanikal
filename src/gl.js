@@ -180,36 +180,39 @@ export const PassageShader = {
     precision highp float;
     varying vec2 vUv; uniform sampler2D tDiffuse, tPrev; uniform float uTime, uAspect, uMix, uDir, uTunnel, uWhite;
     ${NOISE} ${AURORA}
-    vec2 twist(vec2 c, float k){ float cs = cos(k), sn = sin(k); return vec2(c.x*cs - c.y*sn, c.x*sn + c.y*cs); }
+    // turn about the centre of the screen, true on a screen of any shape
+    vec2 twist(vec2 c, float k){ float cs = cos(k), sn = sin(k); c.x *= uAspect; return vec2((c.x*cs - c.y*sn)/uAspect, c.x*sn + c.y*cs); }
+    // beyond its edge a picture is mirrored, so no edge is ever seen
+    vec2 mir(vec2 u){ return 1.0 - abs(1.0 - mod(u, 2.0)); }
     // the same soft rush of speed is given to both worlds, so nothing jumps when one replaces the other
     vec3 rush(sampler2D t, vec2 c){
       vec3 s = vec3(0.0);
-      for (int i = 0; i < 5; i++) { float k = 1.0 - float(i)*0.028*uTunnel; s += texture2D(t, clamp(0.5 + c*k, 0.0005, 0.9995)).rgb; }
+      for (int i = 0; i < 5; i++) { float k = 1.0 - float(i)*0.028*uTunnel; s += texture2D(t, mir(0.5 + c*k)).rgb; }
       return s*0.2;
     }
     void main(){
       vec2 c = vUv - 0.5; vec2 ca = vec2(c.x*uAspect, c.y); float r = length(ca); float a = atan(ca.y, ca.x);
       float e = uMix*uMix*(3.0 - 2.0*uMix);                         // 1 at the start of a passage, 0 at its end
+      float corner = 0.5*length(vec2(uAspect, 1.0));               // from the centre of the screen to its corner
+      float inner = 0.5*min(uAspect, 1.0);                         // the largest circle the screen holds
       // the world arriving settles gently into place
       vec2 cn = twist(c, -uDir*e*0.3*exp(-r*1.5)) * (1.0 - 0.2*e);
       vec3 col = rush(tDiffuse, cn);
       if (uMix > 0.0005) {
         vec3 old; float w, R;
         if (uDir > 0.0) {
-          // outward: the world we leave draws away into a shrinking circle of light
-          float k = max(pow(e, 1.25), 0.0001);
-          vec2 co = twist(c, (1.0 - e)*0.6) / k;
-          old = rush(tPrev, co);
-          vec2 uv = 0.5 + co;
-          float rect = smoothstep(0.0, 0.015, uv.x)*smoothstep(1.0, 0.985, uv.x)*smoothstep(0.0, 0.015, uv.y)*smoothstep(1.0, 0.985, uv.y);
-          R = 0.5*k;
-          float circ = 1.0 - smoothstep(R - 0.05*k - 0.004, R, r);
-          w = rect * mix(circ, 1.0, smoothstep(0.82, 1.0, k)) * smoothstep(0.0, 0.12, e);
+          // outward: an iris of light closes on the world we leave. Until the iris fits inside the
+          // screen the picture stays whole; after that the picture draws away with it, always larger
+          // than the iris, so only a circle is ever seen, on a wide screen or a tall one.
+          R = (corner + 0.14)*pow(e, 1.25);
+          float k = clamp(R/(inner*0.9), 0.0001, 1.0);
+          old = rush(tPrev, twist(c, (1.0 - e)*0.6) / k);
+          w = (1.0 - smoothstep(R - 0.035 - 0.05*R, R, r)) * smoothstep(0.0, 0.1, e);
         } else {
           // inward: we pass through the world we leave; it opens from the centre
           float M = 1.0 + 2.8*pow(1.0 - e, 1.4);
           old = rush(tPrev, twist(c, -(1.0 - e)*0.5) / M);
-          R = (1.0 - e)*1.25;
+          R = (1.0 - e)*(corner + 0.25);
           w = smoothstep(R - 0.14, R, r) * smoothstep(0.0, 0.12, e);
         }
         float wob = 0.012*sin(a*5.0 + uTime*1.3);
@@ -245,6 +248,34 @@ export function petalGeometry(SU = 6, SV = 10) {
     for (let i = 0; i <= SU; i++) {
       const u = (i / SU) * 2 - 1;
       pos.push(v, 0.17 * v * v + 0.1 * (1 - u * u) * Math.sin(Math.PI * v) - 0.07 * u * u * Math.sin(Math.PI * v), u * w * 0.5);
+      uv.push((u + 1) / 2, v);
+    }
+  }
+  for (let j = 0; j < SV; j++) for (let i = 0; i < SU; i++) {
+    const a = j * (SU + 1) + i, b = a + 1, c = a + SU + 1, d = c + 1;
+    idx.push(a, c, b, b, c, d);
+  }
+  g.setIndex(idx);
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.computeVertexNormals();
+  return g;
+}
+
+// one great lotus petal: broad from its very base so that neighbours overlap, deeply cupped like a
+// spoon, drawn to a soft point that lifts and curls back a little (length along +x, width along z)
+export function lotusPetalGeometry(SU = 18, SV = 36) {
+  const g = new THREE.BufferGeometry();
+  const pos = [], uv = [], idx = [];
+  for (let j = 0; j <= SV; j++) {
+    const v = j / SV;
+    // half-width: already wide at the base, widest a little past the middle, then a rounded shoulder into the point
+    const w = (0.3 + 0.24 * Math.pow(Math.sin(Math.PI * Math.pow(v, 0.7) * 0.92), 0.85)) * Math.pow(1 - Math.pow(v, 3.4), 0.62);
+    for (let i = 0; i <= SU; i++) {
+      const u = (i / SU) * 2 - 1;
+      const cup = 0.2 * (u * u) * Math.sin(Math.PI * Math.min(1, v * 1.15)) * (1 - 0.5 * v);     // the edges rise: a cupped petal
+      const spine = 0.2 * v * v - 0.07 * Math.sin(Math.PI * v) + 0.05 * Math.pow(v, 6);            // it sags, then its point lifts
+      pos.push(v, spine + cup, u * w);
       uv.push((u + 1) / 2, v);
     }
   }

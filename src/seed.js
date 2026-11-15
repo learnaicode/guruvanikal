@@ -112,8 +112,12 @@ export function createSeed() {
     p.y += sin(uTime*0.1 + aSeed.x*30.0)*6.0; a = 0.1 + 0.08*aSeed.w; c = vec3(0.85, 0.12, 0.33); s = 4.0 + aSeed.w*10.0;`, { size: 3, maxPx: 180 });
   group.add(others);
 
+  const DOOR = new THREE.Vector3(gx, gy + 0.8, 0);
   return {
     name: 'Guruvanikal', sub: 'the Guru and the disciple', scale: 'a single living cell', beat: 14, band: 'beta',
+    isSeed: true,
+    // travelling freely: pass through the Guru's outline to go within; draw far back to find the Earth
+    free: { u: 0, outer: 300, door: () => DOOR, doorR: 1.5 },
     group, sky: { top: [0.02, 0.002, 0.012], bot: [0.07, 0.006, 0.03], glow: [0.5, 0.08, 0.2], dir: [0, 0, -1], stars: 0, milk: 0, aur: 0 },
     veil: [1.9, 1.6, 1.2],
     // dir 0: resting, 1: outward (draw back), -1: inward (through the Guru's outline, into the light)

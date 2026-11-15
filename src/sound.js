@@ -10,8 +10,8 @@
 //   3. Surf: pink noise that rises and falls like slow breathing.
 //   4. At the Light, a voice-like A-U-M that opens, rounds and closes into a hum.
 //
-// The rate is either automatic (it follows the journey downward, world by world) or held at one
-// state for the whole journey. STATES lists the commonly published brain-wave bands. Monroe's own
+// The rate is automatic (it follows the journey downward, world by world), or held at one state for
+// the whole journey, or it steps through a sequence of states the traveller has chosen. STATES lists the commonly published brain-wave bands. Monroe's own
 // "Focus" mixes are proprietary and are not copied here. It is meant to soothe; no medical claim.
 
 const OM = 136.1, FIFTH = OM * 1.5;
@@ -36,15 +36,15 @@ export const stateName = (hz) => (hz <= 0 ? 'OM' : STATES.reduce((a, b) => (Math
 
 export function createSound() {
   let ctx = null, master = null, filter = null, on = false, pairs = [], aum = null;
-  let auto = { hz: 14, light: false }, mode = 'auto', vol = 0.6, beat = 14, chantOn = false;
+  let auto = { hz: 14, light: false }, mode = 'auto', vol = 0.6, beat = 14, chantOn = false, seqHz = 14;
   try {
     const s = JSON.parse(localStorage.getItem('gv-sound') || '{}');
     if (typeof s.vol === 'number') vol = s.vol;
-    if (s.mode === 'auto' || typeof s.mode === 'number') mode = s.mode;
+    if (s.mode === 'auto' || s.mode === 'seq' || typeof s.mode === 'number') mode = s.mode;
   } catch { /* no saved settings */ }
   const save = () => { try { localStorage.setItem('gv-sound', JSON.stringify({ vol, mode })); } catch { /* private mode */ } };
-  const target = () => (mode === 'auto' ? auto.hz : mode);
-  const wantChant = () => (mode === 'auto' ? auto.light : mode === 0);
+  const target = () => (mode === 'auto' ? auto.hz : mode === 'seq' ? seqHz : mode);
+  const wantChant = () => (mode === 'auto' ? auto.light : target() === 0);
 
   function start() {
     ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -127,7 +127,9 @@ export function createSound() {
     },
     // the journey tells us which world we are in; used when the rate is automatic
     state(hz, atLight) { auto = { hz, light: !!atLight }; if (target() !== beat || wantChant() !== chantOn) apply(); },
-    setMode(m) { mode = m === 'auto' ? 'auto' : Number(m); save(); apply(); },
+    // the state of the chosen sequence that is due now
+    seq(hz) { seqHz = hz; if (mode === 'seq' && (target() !== beat || wantChant() !== chantOn)) apply(); },
+    setMode(m) { mode = m === 'auto' || m === 'seq' ? m : Number(m); save(); apply(); },
     setVolume(v) { vol = Math.min(1, Math.max(0, v)); save(); level(); },
   };
 }

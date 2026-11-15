@@ -17,7 +17,8 @@ npm run dev
 `npm run build` writes the finished static site to `dist/`.
 
 Checking links: `?t=2.4` opens the outward journey stopped at that point (station 2, 40% through);
-`?path=in&t=2.4` does the same on the inward journey; `?lotus` goes straight to the lotus.
+`?path=in&t=2.4` does the same on the inward journey (also `path=up` and `path=down`); `?lotus` goes
+straight to the lotus.
 
 ## The journey
 
@@ -45,23 +46,66 @@ holds the stars.
 
 The sound (`src/sound.js`) is made in the browser and tuned to OM at 136.1 Hz: a drone, two binaural
 pairs (on OM and on its fifth), a slow surf of pink noise, and an A-U-M voice at the lotus. The beat
-needs headphones. The button at the bottom left turns it on or off, sets the volume, and chooses
-between Automatic (the table above) and one held state: gamma 40, beta 18, low beta 14, alpha 10,
+needs headphones. The ☰ panel at the bottom left sets the volume and the frequencies (see below). The
+states are: gamma 40, beta 18, low beta 14, alpha 10,
 Earth resonance 7.83, theta 6, deep theta 4.5, delta 2.5, deep delta 1, epsilon 0.5 Hz, or OM alone.
 These are the commonly published brain-wave bands; Monroe's own Hemi-Sync mixes are proprietary and
 are not copied. It is meant to soothe and makes no medical claim.
+
+There are two more journeys along the whole ladder of scale: **smallest to vastest** (Nucleus, Atom,
+DNA, Cell, the mark, Earth ... Multiverse, the Light) and **vastest to smallest** (the same in reverse).
+
+### Time, as a meditation
+
+The traveller sets how long the journey takes: the natural pace (about two minutes), 3 to 60 minutes,
+or any number of minutes up to 240. The time is shared equally among the worlds; the passages between
+them stay a few seconds long. Pause and the time left are in the ☰ panel at the bottom left. In a long
+sitting the sayings come and go many times.
+
+### Frequencies
+
+In the same panel: follow the journey (the table above), one frequency held throughout, several in
+the traveller's own order (they share the time of the journey equally), or none at all, for a journey
+of the eyes only. "Eyes closed" darkens the picture for a journey of sound only.
+
+### Consciousness: moving freely
+
+**Move freely** (or the C key, or "As consciousness" on the first screen) frees the view from the path.
+The pointer is where attention rests: scrolling moves toward it, dragging looks around; W A S D or the
+arrow keys also move, Space rests. On a phone: drag to look, pinch or hold ▲ ▼ to move. The speed
+slider sets how fast. Every world has a heart and an edge. Going into the heart enters the smaller
+world within it (the Milky Way's small light is the Sun; the Solar System's blue planet is the Earth;
+touching the Earth enters a living cell; the Guru's outline in the mark leads within; and so on down to
+the nucleus, whose heart is the Light). Leaving a world far behind reaches the greater world that holds
+it, up to the multiverse, beyond which is the Light. From the lotus, travelling into the centre light
+enters the multiverse: everything is within it. C again returns to the path at the world one is in.
+
+The controls rest after a few seconds of stillness and return at a touch; **Hide everything** (or H)
+clears the screen completely.
 
 These worlds are a visual path only. They do not sort or interpret the Guru's words.
 
 ## Around the lotus
 
 The **✦ Cosmos / ☀ White space / ☾ Dark space** button chooses the space around the lotus (the choice is
-remembered). Cosmos is the default: the lotus floats at the centre of a deep blue sky with the real stars
-of the twelve rashis (മേടം to മീനം, with their figures) and the yogataras of the twenty-seven nakshatras
-(അശ്വതി to രേവതി), placed by their right ascension and declination and turned so that the ecliptic is a
-ring around the lotus, with the twelve 30° houses of the sidereal zodiac marked on it. The Milky Way and
-thousands of fainter stars lie behind them at many depths (`src/cosmos.js`). In the cosmos one can drag,
-pinch and pan far out among the stars and all around the lotus.
+remembered). Cosmos is the default: the lotus floats at the centre of the real night sky (`src/cosmos.js`).
+
+- **The stars**: all 5,044 stars to magnitude 6, every star the eye can see, each in its true direction
+  (J2000) with its true brightness and colour. Depth follows each star's measured distance (1 to 1,000
+  parsecs, compressed), so the sky can be travelled through and the figures change shape as one moves.
+- **The figures**: the lines of all 88 constellations, the twelve of the zodiac in gold.
+- **The zodiac of Indian astrology**: the ecliptic is a ring around the lotus. On it are the twelve
+  rashis (30° each, മേടം to മീനം) and the twenty-seven nakshatras (13°20' each), measured from the point
+  opposite Chithira (Spica): the sidereal zodiac with the Lahiri ayanamsa (23.853° at J2000). Each
+  nakshatra is named at its yogatara.
+- **The grahas, now**: the Sun, Moon, Mars, Mercury, Jupiter, Venus, Saturn, Rahu and Ketu stand where
+  they are at this moment (`src/ephem.js`: JPL's Keplerian elements for the planets, Meeus's lunar terms
+  for the Moon, the mean lunar nodes; checked against the eclipse of 8 April 2024 to a few hundredths of
+  a degree). The ☰ panel lists each one's rashi, degree and nakshatra.
+
+`src/sky.json` is built by `node tools/build-sky.mjs <folder>` from d3-celestial by Olaf Frohn (stars
+and constellation lines, BSD 3-Clause) and the HYG database v4.0 by David Nash (distances, CC BY-SA 4.0).
+The Milky Way and the faintest stars behind are drawn to look like the sky, not star by star.
 
 The view turns slowly by itself; **⟳ Turning / ⟳ Still** stops or starts it, and it pauses while
 someone reads. Now and then one of the 1,001 sayings rises quietly at the bottom of the screen.
@@ -73,7 +117,7 @@ someone reads. Now and then one of the 1,001 sayings rises quietly at the bottom
 | The light at the centre | Where the Guru resides. Light only; no image is invented. |
 | The golden crown | The 1,001 sayings (English) |
 | The white petals | All 7,955 paragraphs of the four volumes, in book order, 1977 nearest the light |
-| The 30 great petals | The 30 years, each opening its months and talks |
+| The great white petals | Four whorls of broad, overlapping petals, as on a white lotus. The 30 of the innermost whorl are the 30 years, each opening its months and talks |
 
 ## The words: `npm run data`
 
@@ -113,5 +157,6 @@ English (from `../Guruvanikal English`):
 
 ## Files
 
-- `src/seed.js` the 3D mark · `src/realms.js` the nine worlds · `src/lotus.js` the lotus · `src/cosmos.js` the stars around it · `src/gl.js` shared shaders
+- `src/seed.js` the 3D mark · `src/realms.js` the nine worlds · `src/lotus.js` the lotus · `src/cosmos.js` the night sky around it · `src/ephem.js` the grahas now · `src/sky.json` the star catalogue · `src/gl.js` shared shaders
+- `src/main.js` the journeys, their timing, free travel and the ☰ panel
 - `src/ui.js` reader, years, search, NAMA · `src/data.js` loading · `src/sound.js` the drone
