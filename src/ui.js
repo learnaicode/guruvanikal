@@ -1,4 +1,6 @@
 import { DB, loadYear, loadAll, locate, talkList, isMalayalam } from './data.js';
+import '../nama-artifact/search.js';
+const GVS = self.GVSearch;
 
 // Reading, the years, search and NAMA.
 //
@@ -166,44 +168,25 @@ export function initUI(api) {
     barEl.remove();
     return corpus;
   }
-  const STOP = new Set('the and for are but not you your with what when where which who whom why how does did has have had was were will would should could can may this that these those there their them they his her him she from into about say says said tell told guru guruvani please give show want know mean means meaning being been more most some any all one out our own than then also very just over such only upon between'.split(' '));
-  function terms(q) {
-    if (isMalayalam(q)) {
-      return q.split(/[\s,.;:?!"'()\-–—]+/).filter((w) => w.length >= 3).map((w) => ({ w: w.length > 6 ? w.slice(0, Math.max(5, w.length - 2)) : w, ml: true }));
-    }
-    return q.toLowerCase().split(/[^a-z']+/).filter((w) => w.length >= 3 && !STOP.has(w)).map((w) => {
-      let r = w.replace(/'s$/, '');
-      if (r.length > 5) r = r.replace(/(ings?|edly|ed|ly|ness|ment|ies|es|s)$/, '');
-      if (r.length > 5 && /[ey]$/.test(r)) r = r.slice(0, -1);
-      return { w: r, ml: false };
-    });
-  }
-  const count = (hay, needle, cap = 6) => { let n = 0, at = hay.indexOf(needle); while (at >= 0 && n < cap) { n++; at = hay.indexOf(needle, at + needle.length); } return n; };
-  // rank passages by how many of the question's rarer words they hold
+  // the same search NAMA uses (nama-artifact/search.js): any Malayalam keyboard, whole words, BM25 ranking
+  let IX = null;
   function rank(q, { minLen = 0, top = 12 } = {}) {
-    const { P, S } = corpus, ts = terms(q);
+    const { P, S } = corpus;
+    if (!IX) {
+      const docs = P.map((p) => ({ id: p.id, ml: p.ml, en: p.en, ref: p }))
+        .concat(S.map((x) => ({ id: 'S' + (x.i + 1), ml: '', en: x.text, saying: true, ref: x })));
+      IX = GVS.build(docs);
+    }
+    const qt = GVS.queryTerms(q);
+    const ts = qt.ml.map((w) => ({ w, ml: true })).concat(qt.en.map((w) => ({ w, ml: false })));
     if (!ts.length) return { ts, paras: [], says: [] };
-    const field = (p, t) => (t.ml ? p.ml : p.enL);
-    const idf = ts.map((t) => { let df = 0; for (const p of P) if (field(p, t).includes(t.w)) df++; return df ? Math.log(1 + P.length / df) : 0; });
-    const phrase = q.trim().toLowerCase();
-    const score = (get, len) => {
-      let s = 0, hit = 0;
-      ts.forEach((t, k) => { if (!idf[k]) return; const c = count(get(t), t.w); if (c) { hit++; s += idf[k] * (1 + Math.log(c)); } });
-      if (!hit) return 0;
-      s *= 0.4 + 0.6 * (hit / ts.length) * (hit / ts.length);
-      if (ts.length > 1 && phrase.length > 6 && (get(ts[0]).includes(phrase))) s *= 1.6;
-      return s / (1 + len / 4000);
-    };
-    const paras = [];
-    for (const p of P) { if (p.ml.length < minLen) continue; const s = score((t) => field(p, t), p.ml.length); if (s > 0) paras.push({ p, s }); }
-    paras.sort((a, b) => b.s - a.s);
-    const says = [];
-    if (!ts[0].ml) for (const x of S) { const s = score((t) => (t.ml ? '' : x.enL), x.text.length); if (s > 0) says.push({ x, s }); }
-    says.sort((a, b) => b.s - a.s);
+    const all = GVS.search(IX, q, { top: 400 }).docs;
+    const paras = all.filter((d) => !d.saying && d.ml.length >= minLen).map((d, k) => ({ p: d.ref, s: 1000 - k }));
+    const says = all.filter((d) => d.saying).map((d, k) => ({ x: d.ref, s: 1000 - k }));
     return { ts, total: paras.length, paras: paras.slice(0, top), says: says.slice(0, Math.ceil(top / 2)) };
   }
   function snippet(text, ts, width = 230) {
-    const low = text.toLowerCase();
+    const low = ts.some((t) => t.ml) ? GVS.normMl(text) : text.toLowerCase();
     let at = -1;
     for (const t of ts) { const i = low.indexOf(t.w.toLowerCase()); if (i >= 0 && (at < 0 || i < at)) at = i; }
     const a = Math.max(0, (at < 0 ? 0 : at) - 60), cut = text.slice(a, a + width);
