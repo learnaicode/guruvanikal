@@ -5,6 +5,8 @@ Built with three.js and Vite.
 
 An offering by **Gurudath Sadanandan and NAMA**.
 
+© 2026 Gurudath Sadanandan. All rights reserved. See [LICENSE](LICENSE).
+
 ## Run
 
 ```bash

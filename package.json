@@ -19,5 +19,7 @@
   "dependencies": {
     "@fontsource/nunito": "^5.3.0"
   },
-  "author": "Gurudath Sadanandan and NAMA"
+  "author": "Gurudath Sadanandan and NAMA",
+  "license": "SEE LICENSE IN LICENSE",
+  "copyright": "© 2026 Gurudath Sadanandan. All rights reserved."
 }

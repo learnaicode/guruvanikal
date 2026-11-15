@@ -32,6 +32,9 @@ button.quiet { background: none; border-color: transparent; color: var(--dim); }
 .ways button small { display: block; font-size: 13px; font-weight: 400; font-style: italic; opacity: 0.75; }
 .path { margin: 1em 0 0; font-size: 13px; letter-spacing: 0.24em; text-transform: uppercase; color: rgba(246, 239, 228, 0.5); }
 #skip { display: block; margin: 0.3em auto 0; font-size: 15px; }
+.copy { margin: 0.35em 0 0; font-size: 13px; letter-spacing: 0.08em; color: rgba(246, 239, 228, 0.45); }
+#copy { position: fixed; right: 16px; bottom: 14px; margin: 0; z-index: 3; font-size: 12px; letter-spacing: 0.1em; color: rgba(246, 239, 228, 0.5); pointer-events: none; text-shadow: 0 1px 6px #000; }
+body.light #copy { color: rgba(70, 24, 44, 0.6); text-shadow: none; }
 .credit { margin: 0.9em 0 0; font-size: 14px; letter-spacing: 0.14em; color: rgba(246, 239, 228, 0.55); }
 
 /* ---------- the journey ---------- */
@@ -161,6 +164,7 @@ a.link { color: var(--gold2); }
   #layer { top: 58vh; } #hint { bottom: 60px; }
   .panel, .panel.left, .panel.right { left: 8px; right: 8px; width: auto; top: 58px; bottom: 8px; }
   #bar .brand span { display: none; } #bar button { font-size: 14px; padding: 0.42em 0.8em; }
+  #copy { font-size: 11px; bottom: 20px; }
   #legend { font-size: 12px; bottom: 62px; } #rail { right: 10px; }
   #bar { flex-direction: column; align-items: stretch; padding: 10px; } #bar .tools { justify-content: center; } #bar .btn { font-size: 14px; padding: 0.42em 0.8em; }
   .panel, .panel.left, .panel.right { top: 112px; }

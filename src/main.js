@@ -171,13 +171,13 @@ function begin(dir, at) {
 function arrive() {
   S.mode = 'lotus'; S.auto = false; S.p = S.tp = LAST() + 1;
   const h = HOME(); camera.up.set(0, 1, 0); camera.position.copy(h.pos); controls.target.copy(h.tgt); controls.enabled = true; controls.update();
-  $('#bar').hidden = false; $('#legend').hidden = false; $('#hud').hidden = true;
+  $('#bar').hidden = false; $('#legend').hidden = false; $('#copy').hidden = false; $('#hud').hidden = true;
   $('#legend').style.opacity = 1;
   setTimeout(() => { $('#legend').style.transition = 'opacity 2s'; $('#legend').style.opacity = 0; }, 14000);
 }
 function leaveLotus() {
   S.mode = 'journey'; controls.enabled = false; ui.closeAll(); lotus.hover(null); lotus.select(null);
-  $('#bar').hidden = true; $('#legend').hidden = true; $('#hud').hidden = false; fly = null;
+  $('#bar').hidden = true; $('#legend').hidden = true; $('#copy').hidden = true; $('#hud').hidden = false; fly = null;
 }
 
 // ------------------------------------------------------------------ travelling
