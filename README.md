@@ -16,6 +16,14 @@ npm run dev
 
 `npm run build` writes the finished static site to `dist/`.
 
+## Releasing: `npm run release`
+
+guruvanikal.com is a small doorway page (repository `learnaicode/guruvanikal-site`, published once on
+Bolt). Each time it opens it reads `version.txt` from the `live` branch of this repository and loads
+the site built in the commit named there, through jsDelivr. `npm run release` builds the site, commits
+the build to `live` and points `version.txt` at it. guruvanikal.com then shows the new version within
+about five minutes. Nothing is imported or published by hand, and Bolt is not touched again.
+
 Checking links: `?t=2.4` opens the outward journey stopped at that point (station 2, 40% through);
 `?path=in&t=2.4` does the same on the inward journey (also `path=up` and `path=down`); `?lotus` goes
 straight to the lotus.
@@ -37,12 +45,14 @@ to the same Light, after Kees Boeke's *Cosmic View*:
 | Multiverse | | deep delta, 1.5 Hz |
 | The Light: the lotus | The Light: the lotus | OM, 136.1 Hz |
 
-There is no fade between worlds. The world being left is kept as a picture and closes like an iris
-into the centre (outward) or opens from it (inward) while the next world is already behind it, inside
-a tunnel of light in aurora colours (`PassageShader` in `src/gl.js`). The last passage ends in white:
-the journey comes out of the light at the centre of the lotus and draws back until the whole lotus is
-seen. The lotus rests in white space with no edge or horizon; seen from very near, its centre light
-holds the stars.
+Between worlds the motion never stops. Going outward, the world being left keeps drawing back until it
+is a point of light inside the greater world, which is itself drawing back into place; going inward the
+world being left grows past and thins from the centre, where the finer world is already rising
+(`PassageShader` in `src/gl.js`). No shape or edge is drawn. Every world is drawn once, unseen, while the
+first screen shows, so nothing halts when it first appears. The aurora is walked through in depth, layer
+behind layer, not painted on the sky. The last passage ends in white: the journey comes out of the AUM at
+the centre of the lotus, the lotus opens from its bud, whorl by whorl and petal after petal, and the view
+draws back until the whole lotus is seen.
 
 The sound (`src/sound.js`) is made in the browser and tuned to OM at 136.1 Hz: a drone, two binaural
 pairs (on OM and on its fifth), a slow surf of pink noise, and an A-U-M voice at the lotus. The beat
@@ -114,7 +124,7 @@ someone reads. Now and then one of the 1,001 sayings rises quietly at the bottom
 
 | Part | Holds |
 |---|---|
-| The light at the centre | Where the Guru resides. Light only; no image is invented. |
+| AUM at the centre | Where the Guru resides: the AUM in white light, in three dimensions (traced from `brand/aum.png` by `tools/trace-aum.py`). No image is invented. Every journey that leaves the lotus goes through it. **ॐ Meditate in AUM** carries the view inside it to rest and look out at the whole sky, turning slowly. |
 | The golden crown | The 1,001 sayings (English) |
 | The white petals | All 7,955 paragraphs of the four volumes, in book order, 1977 nearest the light |
 | The great white petals | Four whorls of broad, overlapping petals, as on a white lotus. The 30 of the innermost whorl are the 30 years, each opening its months and talks |

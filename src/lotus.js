@@ -1,11 +1,13 @@
 import * as THREE from 'three';
 import { LOW } from './gl.js';
 import { G, NOISE, AURORA, createPoints, petalGeometry, lotusPetalGeometry } from './gl.js';
+import AUM from './aum-shape.json';
 
 // The Light: the lotus that holds every Guruvani.
 //
-//   the light at the centre .......... where the Guru resides (light only; no image is invented).
-//                                      Seen from very near, every star and universe is inside it.
+//   the light at the centre .......... where the Guru resides: the AUM, in white light, in three
+//                                      dimensions (traced from brand/aum.png by tools/trace-aum.py).
+//                                      No image is invented. It is the door to every journey.
 //   the golden crown ................. the 1,001 sayings
 //   the white petals ................. all 7,955 paragraphs of the Guruvanikal, in the order of the
 //                                      books, flowing outward from 1977 to 2006 (each year a ring)
@@ -119,17 +121,21 @@ export function createLotus(index, nSay) {
   // the flower is closed all the way round. The innermost whorl carries the years.
   const big = lotusPetalGeometry(LOW ? 12 : 18, LOW ? 24 : 36);
   const yearMeshes = [], whorls = [];
-  const bigMat = (ring) => new THREE.ShaderMaterial({
+  const bigMat = (ring, idx) => new THREE.ShaderMaterial({
     side: THREE.DoubleSide,
-    uniforms: { uTime: G.uTime, uOn: { value: 0 }, uBloom: uni.uBloom, uRing: { value: ring }, uWhite: W },
-    vertexShader: /* glsl */ `uniform float uTime, uBloom, uOn, uRing; varying vec2 vUv; varying vec3 vN, vW;
+    uniforms: { uTime: G.uTime, uOn: { value: 0 }, uBloom: uni.uBloom, uRing: { value: ring }, uIdx: { value: idx }, uWhite: W },
+    vertexShader: /* glsl */ `uniform float uTime, uBloom, uOn, uRing, uIdx; varying vec2 vUv; varying vec3 vN, vW;
       void main(){
         vUv = uv; vec3 p = position;
-        float b = smoothstep(0.3 + uRing*0.05, 0.86 + uRing*0.045, uBloom);      // the inner whorls open first
-        float ex = (1.0 - b)*(1.05 - uRing*0.1) + sin(uTime*0.4 + modelMatrix[3].x)*0.02*uv.y + uOn*0.1;
+        // the bud opens whorl by whorl from within, and in each whorl one petal after another
+        float st = 0.36 + uRing*0.1 + uIdx*0.1;
+        float b = smoothstep(st, st + 0.22, uBloom);
+        float ex = (1.0 - b)*(1.2 - uRing*0.08) + sin(uTime*0.4 + modelMatrix[3].x)*0.02*uv.y + uOn*0.1;
         float cs = cos(ex), sn = sin(ex); p.xy = vec2(p.x*cs - p.y*sn, p.x*sn + p.y*cs);
         vec3 n = normal; n.xy = vec2(n.x*cs - n.y*sn, n.x*sn + n.y*cs);
-        vec4 wp = modelMatrix*vec4(p, 1.0); vW = wp.xyz; vN = normalize(mat3(modelMatrix)*n);
+        vec4 wp = modelMatrix*vec4(p*mix(0.34, 1.0, b), 1.0);
+        wp.xz *= mix(0.3, 1.0, b);                                              // closed, they are gathered round the bud like the small petals
+        vW = wp.xyz; vN = normalize(mat3(modelMatrix)*n);
         gl_Position = projectionMatrix*viewMatrix*wp;
       }`,
     fragmentShader: /* glsl */ `uniform float uTime, uOn, uRing, uWhite; varying vec2 vUv; varying vec3 vN, vW;
@@ -161,7 +167,7 @@ export function createLotus(index, nSay) {
   WHORL.forEach(([n, r, L, lift, wide, dy], ring) => {
     for (let k = 0; k < n; k++) {
       const th = ((k + (ring % 2) * 0.5) / n) * Math.PI * 2 - Math.PI / 2;
-      const mesh = new THREE.Mesh(big, bigMat(ring));
+      const mesh = new THREE.Mesh(big, bigMat(ring, k / n));
       mesh.position.set(Math.cos(th) * r, 0.0026 * r * r + dy, Math.sin(th) * r);
       qy.setFromAxisAngle(Y, -th); qz.setFromAxisAngle(Z, lift);
       mesh.quaternion.copy(qy).multiply(qz);
@@ -173,7 +179,7 @@ export function createLotus(index, nSay) {
         const label = yearLabel(index.years[k].y);
         const tr = r + L * (Math.cos(lift) - 0.25 * Math.sin(lift)) * 1.03;                 // just beyond the point of the petal
         label.position.set(Math.cos(th) * tr, mesh.position.y + L * (Math.sin(lift) + 0.25 * Math.cos(lift)) + 2.4, Math.sin(th) * tr);
-        mesh.userData.label = label;
+        mesh.userData.label = label; label.material.opacity = 0;
         group.add(label);
       }
     }
@@ -187,50 +193,51 @@ export function createLotus(index, nSay) {
   }));
   group.add(bowl);
 
-  // ---------- the light at the centre ----------
-  // Light, and from very near a window into it: all the stars and universes are held inside.
-  const core = new THREE.Mesh(new THREE.SphereGeometry(2.6, 64, 40), new THREE.ShaderMaterial({
-    uniforms: { uTime: G.uTime },
-    vertexShader: 'varying vec3 vN, vW, vP; void main(){ vP = position; vN = normal; vec4 w = modelMatrix*vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix*viewMatrix*w; }',
-    fragmentShader: /* glsl */ `varying vec3 vN, vW, vP; uniform float uTime; ${NOISE} ${AURORA}
+  // ---------- the light at the centre: AUM ----------
+  // The mark is extruded so that it has body, and it is made of white light. It sways very slowly.
+  const CY = 13, AH = 12;                                   // where it floats, and how tall it is
+  const shapes = AUM.parts.map((part) => {
+    const sh = new THREE.Shape(part.outer.map(([x, y]) => new THREE.Vector2(x * AH, y * AH)));
+    part.holes.forEach((h) => sh.holes.push(new THREE.Path(h.map(([x, y]) => new THREE.Vector2(x * AH, y * AH)))));
+    return sh;
+  });
+  const aumGeo = new THREE.ExtrudeGeometry(shapes, { depth: 1.7, bevelEnabled: true, bevelThickness: 0.3, bevelSize: 0.18, bevelSegments: 4, curveSegments: 1 });
+  aumGeo.translate(0, 0, -0.85); aumGeo.computeVertexNormals();
+  const aumMat = new THREE.ShaderMaterial({
+    uniforms: { uTime: G.uTime, uWhite: W, uA: { value: 1 } }, transparent: true,
+    vertexShader: 'varying vec3 vN, vW; void main(){ vec4 w = modelMatrix*vec4(position, 1.0); vW = w.xyz; vN = normalize(mat3(modelMatrix)*normal); gl_Position = projectionMatrix*viewMatrix*w; }',
+    fragmentShader: /* glsl */ `varying vec3 vN, vW; uniform float uTime, uWhite, uA;
       void main(){
         vec3 N = normalize(vN), V = normalize(cameraPosition - vW);
-        float nd = max(dot(N, V), 0.0);
-        float see = smoothstep(46.0, 9.0, length(cameraPosition - vW));
-        vec3 gold = mix(vec3(3.6, 3.0, 2.0), vec3(2.3, 2.05, 1.6), see);      // near, the glare softens so the inside can be seen
-        vec3 c = gold;
-        if (see > 0.001) {
-          vec3 rd = normalize(refract(-V, N, 0.72)), cosmos = vec3(0.0);
-          for (int i = 0; i < 6; i++) {
-            vec3 p = vP + rd*(0.35 + float(i)*0.7);
-            vec3 g = p*(4.0 + float(i)); vec3 id = floor(g), f = fract(g) - 0.5; float h = hash31(id);
-            float st = smoothstep(0.2, 0.0, length(f + (vec3(hash11(h*7.0), hash11(h*13.0), hash11(h*29.0)) - 0.5)*0.5)) * step(0.5, h);
-            cosmos += (aur(h*5.0) + 0.5) * st * (0.6 + 0.4*sin(uTime*2.0 + h*60.0)) * 1.5;
-            float neb = fbm3(p*0.8 + uTime*0.03);
-            cosmos += aur(neb*1.6 + float(i)*0.13) * pow(neb, 3.0) * 0.9;
-          }
-          vec3 inner = vec3(0.015, 0.008, 0.05) + cosmos;
-          c = mix(gold, inner, smoothstep(0.25, 0.8, nd) * see * 0.96);
-        }
-        gl_FragColor = vec4(c, 1.0);
+        float nd = abs(dot(N, V));
+        // white light: the faces blaze, the cut edges are a little softer so the form is seen
+        vec3 c = vec3(1.0, 0.985, 0.96) * (0.5 + 1.15*pow(nd, 1.6)) * (0.94 + 0.06*sin(uTime*0.9));
+        // in white space the same white is given a body of pale gold at its edges, or it could not be seen
+        c = mix(c, mix(vec3(0.95, 0.66, 0.2), vec3(2.6, 2.45, 2.2), pow(nd, 2.0)), uWhite);
+        gl_FragColor = vec4(c, uA);
       }`,
-  }));
-  core.position.y = 4.2;
+  });
+  const aum = new THREE.Mesh(aumGeo, aumMat);
+  aum.position.y = CY; aum.onBeforeRender = () => { aum.rotation.y = Math.sin(G.uTime.value * 0.22) * 0.55; };
+  group.add(aum);
+  // what is touched: an unseen sphere around the AUM
+  const core = new THREE.Mesh(new THREE.SphereGeometry(6.4, 16, 12), new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
+  core.position.y = CY; core.renderOrder = -5;
   group.add(core);
   const halo = new THREE.Mesh(new THREE.PlaneGeometry(64, 64), new THREE.ShaderMaterial({
     transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, uniforms: { uTime: G.uTime, uBloom: uni.uBloom },
     vertexShader: /* glsl */ `varying vec2 vUv; varying float vFar; void main(){ vUv = uv;
-      vec4 mv = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0); vFar = smoothstep(14.0, 60.0, -mv.z);   // from very near, the glare gives way to what is inside
+      vec4 mv = modelViewMatrix * vec4(0.0, 0.0, 0.0, 1.0); vFar = smoothstep(6.0, 60.0, -mv.z);   // from very near, the glare gives way to what is inside
       mv.xy += position.xy; gl_Position = projectionMatrix * mv; }`,
     fragmentShader: /* glsl */ `varying vec2 vUv; varying float vFar; uniform float uTime, uBloom; ${NOISE}
       void main(){
         vec2 p = vUv*2.0 - 1.0; float r = length(p); float a = atan(p.y, p.x);
         float rays = pow(abs(sin(a*6.0 + uTime*0.12)), 10.0) + 0.6*pow(abs(sin(a*11.0 - uTime*0.09 + 1.0)), 16.0);
-        float g = exp(-r*5.5)*1.1 + exp(-r*16.0)*1.6 + rays*exp(-r*3.6)*0.42;
-        gl_FragColor = vec4(vec3(1.0, 0.88, 0.62)*g*smoothstep(1.0, 0.6, r)*(0.4 + 0.6*uBloom)*vFar, 1.0);
+        float g = exp(-r*4.2)*0.4 + rays*exp(-r*3.2)*0.22;                 // a soft glory behind the AUM, never hiding it
+        gl_FragColor = vec4(vec3(1.0, 0.96, 0.88)*g*smoothstep(1.0, 0.6, r)*(0.4 + 0.6*uBloom)*vFar*0.8, 1.0);
       }`,
   }));
-  halo.position.y = 4.2; halo.frustumCulled = false;
+  halo.position.y = CY; halo.frustumCulled = false;
   group.add(halo);
 
   // ---------- still water under the lotus, fading into the white on every side ----------
@@ -288,7 +295,9 @@ export function createLotus(index, nSay) {
     // white: the lotus in white space · dark: on dark water · cosmos: floating among the stars
     setSpace(mode) { this.space = mode; W.value = mode === 'white' ? 1 : 0; water.visible = mode !== 'cosmos'; motes.visible = mode !== 'cosmos'; yearMeshes.forEach((mm) => mm.userData.label.material.color.set(mode === 'white' ? 0x8c1440 : 0xfff0d2)); },
     veil: [1.9, 1.75, 1.5],
-    setBloom(b) { uni.uBloom.value = b; const k = Math.min(1, Math.max(0, b * 1.7 - 0.7)), e = 0.3 + 0.7 * k * k * (3 - 2 * k); bowl.scale.set(e, 1, e); },
+    // inside the AUM, looking out: the mark and its glare step aside
+    setWithin(on) { aum.visible = !on; halo.visible = !on; },
+    setBloom(b) { uni.uBloom.value = b; const lo = Math.min(1, Math.max(0, (b - 0.9) * 10)); yearMeshes.forEach((mm) => { mm.userData.label.material.opacity = 0.95 * lo; }); const k = Math.min(1, Math.max(0, b * 1.7 - 0.7)), e = 0.3 + 0.7 * k * k * (3 - 2 * k); bowl.scale.set(e, 1, e); },
     hover(i) { uni.uHover.value = i == null ? -10 : i; },
     mark(i) { uni.uOne.value = i == null ? -10 : i; },
     select(a, b) { uni.uSelA.value = a == null ? -1 : a; uni.uSelB.value = b == null ? -1 : b; },

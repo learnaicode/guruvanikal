@@ -10,7 +10,8 @@ import { G, NOISE, AURORA, createPortal, createPoints } from './gl.js';
 // These worlds are a visual path only. They do not sort or interpret the Guru's words.
 
 const rnd = (a = 0, b = 1) => a + Math.random() * (b - a);
-const ease = (t) => t * t * (3 - 2 * t);
+// the motion in each world eases, but never comes to rest at its ends: one world flows into the next
+const ease = (t) => 0.42 * t + 0.58 * t * t * (3 - 2 * t);
 const lerp = THREE.MathUtils.lerp;
 const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
 const tA = V(), tB = V(), tC = V(), ORIGIN = V();

@@ -42,17 +42,38 @@ export function createSky() {
     },
     vertexShader: 'varying vec3 vD; void main(){ vD = normalize(position); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: /* glsl */ `
+      #define AUR_N ${LOW ? 12 : 20}
+      #define AUR_STEP ${LOW ? '4.2' : '2.5'}
       varying vec3 vD; uniform float uTime, uStars, uMilk, uAur, uFloor; uniform vec3 uTop, uBot, uGlow, uGlowDir;
       ${NOISE} ${AURORA}
-      // curtains of aurora, one above the horizon and one below, so they are there wherever we look
-      vec3 curtain(vec3 d, float y0, float sd){
-        float a = atan(d.z, d.x); vec2 q = vec2(cos(a), sin(a));
-        float w = fbm(q*1.5 + vec2(uTime*0.025 + sd, d.y*0.7 + sd));
-        float band = d.y - y0 - (w - 0.5)*0.9;
-        float cur = exp(-band*band*3.5)*0.7;
-        float rays = 0.5 + 0.5*sin(a*36.0 + w*26.0 + uTime*0.15 + sd*9.0);
-        rays = mix(1.0, rays, 0.22);
-        return aur(w*1.6 + d.y*0.35 + sd + uTime*0.01) * cur * rays;
+      // The aurora is not painted on the sky. Each ray of sight is walked upward through many thin
+      // layers of light, one behind another, so the curtains have depth, fold over each other and
+      // rise as rays (after the method of nimitz, "Auroras").
+      mat2 rot2(float a){ float c = cos(a), s = sin(a); return mat2(c, s, -s, c); }
+      float tri(float x){ return clamp(abs(fract(x) - 0.5), 0.01, 0.49); }
+      vec2 tri2(vec2 p){ return vec2(tri(p.x) + tri(p.y), tri(p.y + tri(p.x))); }
+      float triNoise(vec2 p, float spd){
+        float z = 1.8, z2 = 2.5, rz = 0.0; p *= rot2(p.x*0.06); vec2 bp = p;
+        for (int i = 0; i < 5; i++) {
+          vec2 dg = tri2(bp*1.85)*0.75; dg *= rot2(uTime*spd);
+          p -= dg/z2; bp *= 1.3; z2 *= 0.45; z *= 0.42; p *= 1.21 + (rz - 1.0)*0.02;
+          rz += tri(p.x + tri(p.y))*z; p *= -mat2(0.95534, 0.29552, -0.29552, 0.95534);
+        }
+        return clamp(1.0/pow(rz*29.0, 1.3), 0.0, 0.55);
+      }
+      vec3 curtain(vec3 rd, float sd){
+        vec3 col = vec3(0.0), avg = vec3(0.0);
+        float jit = hash21(gl_FragCoord.xy + sd);
+        for (int k = 0; k < AUR_N; k++) {
+          float i = float(k)*AUR_STEP;
+          float pt = (0.8 + pow(i, 1.4)*0.002)/(rd.y*2.0 + 0.4) - 0.006*jit*smoothstep(0.0, 15.0, i);
+          vec3 bp = pt*rd;
+          float rz = triNoise(bp.zx + sd, 0.05);
+          vec3 c2 = (sin(1.0 - vec3(2.15, -0.5, 1.2) + i*0.043)*0.5 + 0.5)*rz;      // green below, rose and violet above
+          avg = mix(avg, c2, 0.5);
+          col += avg*exp2(-i*0.065 - 2.5)*smoothstep(0.0, 5.0, i)*AUR_STEP;
+        }
+        return col*clamp(rd.y*15.0 + 0.4, 0.0, 1.0)*1.8;
       }
       float starLayer(vec3 d, float sc, float th){
         vec3 p = d*sc; vec3 i = floor(p); vec3 f = fract(p)-0.5; float h = hash31(i);
@@ -70,7 +91,7 @@ export function createSky() {
         c += vec3(0.85, 0.9, 1.0) * st * uStars * smoothstep(-0.05, 0.3, h + 0.2);
         float band = fbm(d.xz*3.0 + d.y*2.0) * smoothstep(0.55, 0.0, abs(d.y*1.2 + d.x*0.6 - 0.25));
         c += vec3(0.35, 0.3, 0.6) * band * uMilk;
-        if (uAur > 0.001) c += (curtain(d, 0.34, 0.0) + curtain(d, -0.38, 3.7)) * 0.11 * uAur * smoothstep(0.0, 0.35, abs(h));
+        if (uAur > 0.001) c += (h > 0.0 ? curtain(d, 0.0) : curtain(vec3(d.x, -d.y, d.z), 7.3)) * uAur * 0.7 * smoothstep(0.04, 0.42, abs(h));
         gl_FragColor = vec4(c, 1.0);
       }`,
   });
@@ -194,31 +215,32 @@ export const PassageShader = {
       vec2 c = vUv - 0.5; vec2 ca = vec2(c.x*uAspect, c.y); float r = length(ca); float a = atan(ca.y, ca.x);
       float e = uMix*uMix*(3.0 - 2.0*uMix);                         // 1 at the start of a passage, 0 at its end
       float corner = 0.5*length(vec2(uAspect, 1.0));               // from the centre of the screen to its corner
-      float inner = 0.5*min(uAspect, 1.0);                         // the largest circle the screen holds
-      // the world arriving settles gently into place
-      vec2 cn = twist(c, -uDir*e*0.3*exp(-r*1.5)) * (1.0 - 0.2*e);
-      vec3 col = rush(tDiffuse, cn);
-      if (uMix > 0.0005) {
-        vec3 old; float w, R;
-        if (uDir > 0.0) {
-          // outward: an iris of light closes on the world we leave. Until the iris fits inside the
-          // screen the picture stays whole; after that the picture draws away with it, always larger
-          // than the iris, so only a circle is ever seen, on a wide screen or a tall one.
-          R = (corner + 0.14)*pow(e, 1.25);
-          float k = clamp(R/(inner*0.9), 0.0001, 1.0);
-          old = rush(tPrev, twist(c, (1.0 - e)*0.6) / k);
-          w = (1.0 - smoothstep(R - 0.035 - 0.05*R, R, r)) * smoothstep(0.0, 0.1, e);
-        } else {
-          // inward: we pass through the world we leave; it opens from the centre
-          float M = 1.0 + 2.8*pow(1.0 - e, 1.4);
-          old = rush(tPrev, twist(c, -(1.0 - e)*0.5) / M);
-          R = (1.0 - e)*(corner + 0.25);
-          w = smoothstep(R - 0.14, R, r) * smoothstep(0.0, 0.12, e);
-        }
-        float wob = 0.012*sin(a*5.0 + uTime*1.3);
-        float rim = exp(-pow((r - R + wob)/0.05, 2.0)) * smoothstep(0.0, 0.15, e) * smoothstep(1.0, 0.85, e);
+      float t = 1.0 - uMix;                                        // 0 at the start, 1 at the end; it runs evenly, so the motion never rests
+      vec3 col;
+      if (uMix <= 0.0005) col = rush(tDiffuse, c);
+      else if (uDir > 0.0) {
+        // Outward: one unbroken drawing back. The world we leave keeps shrinking toward the centre
+        // until it is a point of light, and the greater world that holds it is already there around
+        // it, itself drawing back into place. Nothing is cut out and no edge is drawn: the smaller
+        // world simply melts into the larger at its soft edge.
+        float k = exp(-3.6*t);                                       // the old world: 1 down to a point
+        col = rush(tDiffuse, c / exp(1.15*uMix));                    // the new world: seen close, easing out to its true size
+        vec3 old = rush(tPrev, c / k);
+        float R = (corner + 0.16)*pow(k, 0.82);
+        float fade = smoothstep(0.0, 0.3, uMix);
+        // at its soft edge only what is bright in the old world remains (its dark sky does not cover the new one)
+        col = mix(col, max(col, old), (1.0 - smoothstep(R*0.5, R, r)) * fade);
+        col = mix(col, old, (1.0 - smoothstep(R*0.16, R*0.62, r)) * fade);
+        col += vec3(1.0, 0.95, 0.85)*exp(-r*r/(R*R*0.35 + 0.0006))*0.35*smoothstep(0.55, 0.15, uMix)*smoothstep(0.0, 0.12, uMix);
+      } else {
+        // Inward: one unbroken going in. The world we leave grows past us and thins from the centre,
+        // where the finer world within it is already coming up to meet us.
+        float M = exp(3.0*t);
+        col = rush(tDiffuse, c * (1.0 + 0.9*uMix));
+        vec3 old = rush(tPrev, c / M);
+        float R = t*(corner + 0.3);
+        float w = smoothstep(R*0.35, R + 0.02, r) * smoothstep(0.0, 0.3, uMix);
         col = mix(col, old, w);
-        col += aur(a*0.159 + uTime*0.05 + r*0.6)*rim*0.55 + vec3(1.0, 0.96, 0.88)*rim*rim*0.25;
       }
       if (uTunnel > 0.0005) {
         // the tunnel: walls of flowing light and a brightness at the far end

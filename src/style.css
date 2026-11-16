@@ -38,7 +38,7 @@ button.quiet { background: none; border-color: transparent; color: var(--dim); }
 #muse p { font-size: clamp(19px, 2.3vw, 27px); line-height: 1.45; font-style: italic; margin: 0 0 0.4em; color: #fff6e6; text-shadow: 0 2px 18px rgba(0, 0, 0, 0.95), 0 0 3px rgba(0, 0, 0, 0.8); }
 #muse span { font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); text-shadow: 0 1px 8px #000; }
 body.light #muse p { color: #4a1530; text-shadow: 0 0 14px #fff, 0 0 4px #fff; } body.light #muse span { color: #a26a14; text-shadow: none; }
-#rot.on { border-color: var(--gold); }
+#rot.on, #med.on { border-color: var(--gold); }
 #copy { position: fixed; right: 16px; bottom: 14px; margin: 0; z-index: 3; font-size: 12px; letter-spacing: 0.1em; color: rgba(246, 239, 228, 0.5); pointer-events: none; text-shadow: 0 1px 6px #000; }
 body.light #copy { color: rgba(70, 24, 44, 0.6); text-shadow: none; }
 .credit { margin: 0.9em 0 0; font-size: 14px; letter-spacing: 0.14em; color: rgba(246, 239, 228, 0.55); }

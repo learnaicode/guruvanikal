@@ -39,12 +39,12 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, LOW ? 1.25 : 1.75));
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.0;
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(FOV, innerWidth / innerHeight, 0.1, 14000);
+const camera = new THREE.PerspectiveCamera(FOV, innerWidth / innerHeight, 0.1, 9000);
 const sky = createSky();
 scene.add(sky);
 
 // the picture is drawn with several samples to each point, so the edges of the petals are smooth
-const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: LOW ? 2 : 4 }));
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: LOW ? 0 : 4 }));
 composer.setPixelRatio(renderer.getPixelRatio());
 composer.addPass(new RenderPass(scene, camera));
 // the passage between worlds: the world we leave is kept as a picture and closes or opens like an iris
@@ -133,7 +133,7 @@ function setFreedom() {
 
 // Arriving: we come out of the light at the centre of the lotus, rise from the opening bud and draw
 // back until the whole lotus is seen. It ends exactly where HOME is.
-const CORE = new THREE.Vector3(0, 4.2, 0);
+const CORE = new THREE.Vector3(0, 13, 0);                // the AUM
 const tA = new THREE.Vector3(), tB = new THREE.Vector3(), tC = new THREE.Vector3(), tQ = new THREE.Quaternion(), tO = new THREE.Object3D();
 function lotusPath(u, cam) {
   const h = HOME(), e = ease(u);
@@ -195,6 +195,7 @@ function showSaying() {
 function chrome() {
   const atL = atLotus();
   $('#bar').hidden = !atL; $('#copy').hidden = !atL; $('#legend').hidden = S.mode !== 'lotus';
+  $('#med').hidden = S.mode !== 'lotus';
   $('#hud').hidden = S.mode === 'intro' || S.mode === 'lotus';
   $('#fly').hidden = S.mode !== 'free';
   document.body.classList.toggle('free', S.mode === 'free');
@@ -229,10 +230,21 @@ function jumpTo(k) {
   if (S.mode === 'lotus') leaveLotus();
   S.p = S.tp = k + 0.02; S.auto = true; S.hold = 0; S.last = null;
 }
+// Leaving the lotus, every journey goes through the AUM: the view is drawn slowly into it, into its
+// white light, and the first world of the journey opens out of that light.
+const LV = { t: 0, sec: 4.2, p0: new THREE.Vector3(), dir: 'out', at: 0, veil: 0 };
 function begin(dir, at) {
+  if (S.mode === 'leaving') return;
+  if (S.mode === 'lotus' && lotus) {
+    leaveLotus(); S.mode = 'leaving'; LV.t = 0; LV.p0.copy(camera.position); LV.dir = dir; LV.at = at; chrome();
+    return;
+  }
+  go(dir, at);
+}
+function go(dir, at) {
   if (S.mode === 'free') { S.mode = 'journey'; F.pending = null; }
   S.dir = dir; buildRail();
-  if (S.mode === 'lotus') { leaveLotus(); S.fromLotus = true; }
+  if (S.mode === 'leaving') S.fromLotus = true;
   $('#intro').classList.add('gone');
   S.mode = 'journey'; S.auto = true; S.hold = 0; S.last = null; S.paused = false; $('#pause').textContent = 'Pause'; $('#pause').classList.remove('on');
   S.p = S.tp = at || 0; S.t0 = performance.now();
@@ -249,9 +261,37 @@ function arrive() {
   setTimeout(() => { $('#legend').style.transition = 'opacity 2s'; $('#legend').style.opacity = 0; }, 14000);
 }
 function leaveLotus() {
+  M.on = false; M.t = 0; lotus.setWithin(false); setMedBtn();
   S.mode = 'journey'; controls.enabled = false; ui.closeAll(); lotus.hover(null); lotus.select(null);
   fly = null; muse.classList.remove('on'); chrome();
 }
+
+// ------------------------------------------------------------------ meditating within the AUM
+// A choice, at the lotus only: the view is carried into the AUM and rests there, looking out. The
+// lotus lies open below, the whole sky with its zodiac and constellations is around, and the view
+// turns very slowly. Drag to look anywhere. The same button, or Esc, returns.
+const M = { on: false, t: 0, yaw: 0, pitch: 0.1, p0: new THREE.Vector3(), q0: new THREE.Quaternion(), drag: null, idle: 0 };
+const EYE = new THREE.Vector3(0, 19.5, 0), tE = new THREE.Euler(0, 0, 0, 'YXZ');
+function setMedBtn() { const b = $('#med'); b.textContent = M.on ? 'ॐ Return' : 'ॐ Meditate in AUM'; b.classList.toggle('on', M.on); }
+function toggleMed() {
+  if (S.mode !== 'lotus') return;
+  M.on = !M.on;
+  if (M.on) {
+    if (M.t <= 0) { M.p0.copy(camera.position); M.q0.copy(camera.quaternion); }
+    tA.set(0, 0, -1).applyQuaternion(camera.quaternion); M.yaw = Math.atan2(-tA.x, -tA.z); M.pitch = 0.3;
+    controls.enabled = false; fly = null; ui.closeAll();
+    if (space !== 'cosmos') setSpace('cosmos');               // within the AUM the whole sky is seen
+  }
+  setMedBtn(); wake();
+}
+$('#med').onclick = toggleMed;
+canvas.addEventListener('pointerdown', (e) => { if (M.on) M.drag = { x: e.clientX, y: e.clientY }; });
+canvas.addEventListener('pointermove', (e) => {
+  if (!M.on || !M.drag || !e.buttons) return;
+  M.yaw += (e.clientX - M.drag.x) * 0.004; M.pitch = clamp(M.pitch + (e.clientY - M.drag.y) * 0.004, -1.2, 1.45);
+  M.drag.x = e.clientX; M.drag.y = e.clientY; M.idle = 0;
+});
+for (const ev of ['pointerup', 'pointercancel']) canvas.addEventListener(ev, () => { M.drag = null; });
 
 // ------------------------------------------------------------------ travelling along the path
 function push(d) {
@@ -279,7 +319,8 @@ addEventListener('keydown', (e) => {
   if (typing(e) || e.metaKey || e.ctrlKey || e.altKey) return;
   const key = e.key.length === 1 ? e.key.toLowerCase() : e.key;
   if (key === 'h') { setBare(!document.body.classList.contains('bare')); return; }
-  if (key === 'c' && S.mode !== 'intro') { toggleFree(); return; }
+  if (key === 'Escape' && M.on) { toggleMed(); return; }
+  if (key === 'c' && S.mode !== 'intro' && S.mode !== 'leaving' && !M.on) { toggleFree(); return; }
   if (S.mode === 'free') {
     if (key === 'Escape') toggleFree();
     else if (key === ' ') { F.vel = 0; F.side = 0; e.preventDefault(); } else if (key === '[') setSens(F.sens - 0.1); else if (key === ']') setSens(F.sens + 0.1);
@@ -297,14 +338,15 @@ addEventListener('blur', () => { F.keys = {}; F.hold = 0; });
 // ------------------------------------------------------------------ travelling freely, as consciousness
 // The pointer is where attention rests; scrolling moves toward it. Each world has a heart (the way to
 // the smaller world within it) and an edge (the way to the greater world that holds it).
-const LOTUS_FREE = { u: 1, outer: 5200, door: () => CORE, doorR: 2.9, speed: 620 };
+const LOTUS_FREE = { u: 1, outer: 5200, door: () => CORE, doorR: 4.2, speed: 620 };
 const freeOf = (R) => (R === lotus ? LOTUS_FREE : R.free);
 const sensSpeed = () => 0.25 * Math.pow(12, F.sens);          // 0.25x to 3x
 function setSens(v) { F.sens = clamp(v, 0, 1); store.set('gv-sens', F.sens); $('#sens').value = Math.round(F.sens * 100); }
 $('#sens').oninput = () => setSens($('#sens').value / 100);
 setSens(F.sens);
 function toggleFree() {
-  if (S.mode === 'intro') return;
+  if (S.mode === 'intro' || S.mode === 'leaving') return;
+  if (S.mode === 'lotus' && (M.on || M.t > 0)) { M.on = false; M.t = 0; lotus.setWithin(false); setMedBtn(); camera.position.copy(M.p0); camera.quaternion.copy(M.q0); }
   if (S.mode !== 'free') {
     const R = S.mode === 'lotus' ? lotus : baseOf(T()[clamp(Math.floor(S.p), 0, LAST())]);
     if (!R) return;
@@ -427,14 +469,14 @@ canvas.addEventListener('pointermove', (e) => {
   const now = performance.now(); if (now - lastPick < 55) return; lastPick = now;
   const hit = lotus.pick(e.clientX, e.clientY, camera);
   const cur = S.mode === 'free' ? 'crosshair' : 'grab';
-  if (hit && hit.core) { lotus.hover(null); lotus.hoverYear(-1); canvas.style.cursor = 'pointer'; ui.showTip(S.mode === 'free' ? '<small>The light at the centre</small>Touch to speak with NAMA · or travel into it' : '<small>The light at the centre</small>Touch to speak with NAMA', e.clientX, e.clientY); return; }
+  if (hit && hit.core) { lotus.hover(null); lotus.hoverYear(-1); canvas.style.cursor = 'pointer'; ui.showTip(S.mode === 'free' ? '<small>AUM · the light at the centre</small>Touch to speak with NAMA · or travel into it' : '<small>AUM · the light at the centre</small>Touch to speak with NAMA', e.clientX, e.clientY); return; }
   lotus.hover(hit && hit.petal != null ? hit.petal : null);
   lotus.hoverYear(hit && hit.year != null ? hit.year : -1);
   canvas.style.cursor = hit ? 'pointer' : cur;
   ui.showTip(hit ? (hit.petal != null ? ui.petalLabel(hit.petal) : ui.yearLabel(hit.year)) : null, e.clientX, e.clientY);
 });
 canvas.addEventListener('pointerup', (e) => {
-  if (!atLotus() || !down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 7) return;
+  if (!atLotus() || M.t > 0.5 || !down || Math.hypot(e.clientX - down.x, e.clientY - down.y) > 7) return;
   const hit = lotus.pick(e.clientX, e.clientY, camera);
   if (!hit) return;
   ui.showTip(null);
@@ -518,6 +560,24 @@ function calmTick(now) {
   if (now - awakeAt > 7000) document.body.classList.add('calm');
 }
 
+// ------------------------------------------------------------------ every world made ready beforehand
+// A world drawn for the first time makes the picture stop for a moment while its shaders and shapes
+// are prepared. So each world is drawn once, unseen, while the first screen is showing.
+function warmUp() {
+  const list = [...groups, lotus.group];
+  const step = () => {
+    if (X.t > 0) { setTimeout(step, 400); return; }                   // never during a passage: it uses the same picture
+    const g = list.shift(); if (!g) { if (!cosmos) { setTimeout(step, 500); return; } if (!cosmos.warm) { cosmos.warm = true; list.push(cosmos.group); setTimeout(step, 200); } return; }
+    const was = [], seen = groups.concat(lotus.group, cosmos ? [cosmos.group] : []).map((x) => [x, x.visible]);
+    seen.forEach(([x]) => { x.visible = x === g; });
+    g.traverse((o) => { if (o.frustumCulled) { was.push(o); o.frustumCulled = false; } });
+    renderer.setRenderTarget(snap); renderer.render(scene, camera); renderer.setRenderTarget(null);
+    was.forEach((o) => { o.frustumCulled = true; }); seen.forEach(([x, v]) => { x.visible = v; });
+    setTimeout(step, 180);
+  };
+  setTimeout(step, 600);
+}
+
 // ------------------------------------------------------------------ the frame
 const clock = new THREE.Clock();
 function frame() {
@@ -548,9 +608,9 @@ function frame() {
     if (shown) {
       camera.updateMatrixWorld(); sky.position.copy(camera.position);
       renderer.setRenderTarget(snap); renderer.clear(); renderer.render(scene, camera); renderer.setRenderTarget(null);
-      if (F.pending) { X.dir = F.pending.x; X.sec = 2.4; } else {
+      if (F.pending) { X.dir = F.pending.x; X.sec = 3.2; } else {
         const j = track.findIndex((r) => r.group === shown.group), fwd = j < 0 || k > j;
-        X.dir = S.fromLotus ? -1 : ZOOM[S.dir] * (fwd ? 1 : -1); X.sec = S.fromLotus ? 3.2 : 2.6;
+        X.dir = S.fromLotus ? -1 : ZOOM[S.dir] * (fwd ? 1 : -1); X.sec = S.fromLotus ? 4 : 3.6;
       }
       X.t = 1; S.fromLotus = false;
     }
@@ -571,7 +631,23 @@ function frame() {
   }
   if (sndKind.value === 'seq') { const h = seqNow(); if (h !== sound.hz) { sound.seq(h); syncSound(); } }
 
-  if (S.mode === 'lotus') {
+  if (S.mode === 'lotus' && (M.on || M.t > 0)) {
+    // into the AUM, or back out of it, slowly
+    M.t = clamp(M.t + (M.on ? dt : -dt) / 4.5, 0, 1); const e = ease(M.t);
+    M.idle += dt; if (M.on && !M.drag && M.idle > 1.5) M.yaw += dt * 0.03;      // the sky goes round once in about three and a half minutes
+    camera.position.lerpVectors(M.p0, EYE, e);
+    tE.set(M.pitch, M.yaw, 0); tQ.setFromEuler(tE); camera.quaternion.slerpQuaternions(M.q0, tQ, e);
+    lotus.setWithin(M.t > 0.8); lotus.setBloom(1);
+    if (!M.on && M.t <= 0) { controls.enabled = true; controls.update(); }
+  } else if (S.mode === 'leaving') {
+    // drawn into the AUM
+    LV.t = Math.min(1, LV.t + dt / LV.sec); const e = ease(LV.t);
+    tA.copy(LV.p0).sub(CORE); const d0 = tA.length();
+    camera.position.copy(CORE).addScaledVector(tA.normalize(), 1.6 + (d0 - 1.6) * Math.pow(1 - e, 2.2));
+    tO.position.copy(camera.position); tO.up.set(0, 1, 0); tO.lookAt(CORE); tO.rotateY(Math.PI); camera.quaternion.slerp(tO.quaternion, Math.min(1, dt * 2.5));
+    lotus.setBloom(1); LV.veil = sstep(0.5, 0.97, LV.t);
+    if (LV.t >= 1) go(LV.dir, LV.at);
+  } else if (S.mode === 'lotus') {
     if (fly) {
       fly.t = Math.min(1, fly.t + dt / fly.sec); const e = ease(fly.t);
       camera.position.lerpVectors(fly.p0, fly.p1, e); controls.target.lerpVectors(fly.t0, fly.t1, e);
@@ -613,17 +689,19 @@ function frame() {
   // the tunnel of light: it gathers in the last seconds of a world and thins as the next one opens
   const going = S.mode === 'journey' && k < last, toLight = going && k === last - 1;
   const rem = (1 - u) * per;                                 // seconds left in this world
-  let want = going ? sstep(toLight ? 4.5 : 3.2, 0, rem) * 0.8 : 0;
-  want = Math.max(want, ease(X.t) * 0.65);
+  // drawing back into the vast it is kept faint, so the eye follows the worlds and not the light around them
+  let want = going ? sstep(toLight ? 4.5 : 3.2, 0, rem) * (toLight || ZOOM[S.dir] < 0 ? 0.8 : 0.3) : 0;
+  want = Math.max(want, ease(X.t) * (X.dir < 0 ? 0.55 : 0.22));
   tun += (want - tun) * (1 - Math.exp(-dt * 6));
   passage.uniforms.uTunnel.value = tun; passage.uniforms.uMix.value = X.t; passage.uniforms.uDir.value = X.dir;
   passage.uniforms.uWhite.value = toLight ? sstep(3, 0, rem) : atL ? X.t : 0;
-  const fov = FOV + 26 * tun * (S.mode === 'lotus' ? 0 : 1);
+  const fov = FOV + 26 * tun * (S.mode === 'lotus' ? 0 : 1) + 16 * ease(M.t);
   if (Math.abs(fov - camera.fov) > 0.01) { camera.fov = fov; camera.updateProjectionMatrix(); }
 
   // white space at the lotus: no dark corners, and only the strongest light blooms
   const near = atL ? 1.2 : 0.1;                              // a deeper near plane at the lotus keeps the petals from shimmering
-  if (camera.near !== near) { camera.near = near; camera.updateProjectionMatrix(); }
+  const farZ = atL ? 14000 : 9000;
+  if (camera.near !== near || camera.far !== farZ) { camera.near = near; camera.far = farZ; camera.updateProjectionMatrix(); }
   lw += ((atL && white ? 1 : 0) - lw) * (1 - Math.exp(-dt * 2.5));
   bloom.threshold = THREE.MathUtils.lerp(0.88, 2.5, lw); bloom.strength = THREE.MathUtils.lerp(0.5, 0.42, lw);
   final.uniforms.uVig.value = THREE.MathUtils.lerp(0.72, 0.06, lw);
@@ -632,7 +710,10 @@ function frame() {
   sky.position.copy(camera.position);
   // the last passage ends in white
   let veil = toLight ? sstep(2.4, 0, rem) * 0.8 : 0;
-  if (atL && white) veil = Math.max(veil, ease(X.t) * 0.8 * (X.sec < 3 ? 1 : 0));
+  if (atL && white) veil = Math.max(veil, ease(X.t) * 0.8 * (X.dir > 0 ? 1 : 0));
+  // the white of the AUM, as we enter it and as the first world opens out of it
+  if (S.mode !== 'leaving') LV.veil = Math.max(0, LV.veil - dt / 2.2);
+  veil = Math.max(veil, LV.veil * 0.92);
   final.uniforms.uVeil.value = veil; final.uniforms.uVeilCol.value.setRGB(2.1, 2.1, 2.1);
   dim += ((dark ? 0.97 : 0) - dim) * (1 - Math.exp(-dt * 1.5));
   final.uniforms.uLens.value = 0; final.uniforms.uDim.value = dim;
@@ -650,13 +731,15 @@ requestAnimationFrame(frame);
 $('#speak').href = NAMA_AI_URL;
 const SPACE_NAME = { cosmos: '✦ Cosmos', white: '☀ White space', dark: '☾ Dark space' };
 function setSpaceBtn() { $('#space').textContent = SPACE_NAME[space]; $('#space').title = 'Space around the lotus: ' + SPACE_NAME[space].slice(2) + ' (touch to change)'; }
-$('#space').onclick = () => {
-  space = SPACES[(SPACES.indexOf(space) + 1) % SPACES.length]; white = space === 'white';
+$('#space').onclick = () => setSpace(SPACES[(SPACES.indexOf(space) + 1) % SPACES.length]);
+function setSpace(name) {
+  space = name; white = space === 'white';
   store.set('gv-space', space);
   lotus.setSpace(space); setSpaceBtn(); setFreedom();
-  if (S.mode === 'lotus') { applySky(lotus.sky); const h = HOME(); flyTo(h.pos, h.tgt, 2.4); }
+  if (S.mode === 'lotus' && (M.on || M.t > 0)) applySky(lotus.sky);
+  else if (S.mode === 'lotus') { applySky(lotus.sky); const h = HOME(); flyTo(h.pos, h.tgt, 2.4); }
   else if (shown === lotus) applySky(lotus.sky);
-};
+}
 function setRotBtn() { $('#rot').textContent = rotate ? '⟳ Turning' : '⟳ Still'; $('#rot').classList.toggle('on', rotate); }
 $('#rot').onclick = () => { rotate = !rotate; store.set('gv-rotate', rotate ? 'on' : 'off'); setRotBtn(); setFreedom(); };
 setRotBtn();
@@ -694,5 +777,6 @@ loadCore().then(() => {
   const dir = tracks[params.get('path')] ? params.get('path') : 'out';
   if (params.has('t')) { S.muted = true; begin(dir, Number(params.get('t'))); S.auto = false; S.hold = 1e9; }
   if (params.has('lotus')) { S.muted = true; begin(dir, LAST() + 0.9); }
-  window.gv = { frame, S, X, F, lotus, camera, controls, ui, jumpTo, begin, toggleFree, sound, worlds, seed, LADDER, get cosmos() { return cosmos; } };
+  warmUp();
+  window.gv = { frame, M, toggleMed, S, X, F, lotus, camera, controls, ui, jumpTo, begin, toggleFree, sound, worlds, seed, LADDER, get cosmos() { return cosmos; } };
 }).catch((err) => { $('#count').textContent = 'The Guruvanis could not be loaded'; console.error(err); });

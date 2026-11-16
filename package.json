@@ -8,7 +8,8 @@
     "data": "node tools/build-data.mjs",
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "release": "bash tools/release.sh"
   },
   "devDependencies": {
     "@fontsource/cormorant-garamond": "^5.3.0",
@@ -21,5 +22,5 @@
   },
   "author": "Gurudath Sadanandan and NAMA",
   "license": "SEE LICENSE IN LICENSE",
-  "copyright": "© 2026 Gurudath Sadanandan. All rights reserved."
+  "copyright": "\u00a9 2026 Gurudath Sadanandan. All rights reserved."
 }
