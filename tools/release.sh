@@ -22,11 +22,11 @@ find "$TMP" -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
 cp -R dist/. "$TMP"/
 rm -rf "$TMP/data"                      # the words are served from learnaicode/guruvanikal-data
 git -C "$TMP" add -A
-git -C "$TMP" -c user.name="$(git config user.name)" -c user.email="$(git config user.email)" commit --quiet --allow-empty -m "Site built from $(git rev-parse --short HEAD)"
+git -C "$TMP" commit --quiet --allow-empty -m "Site built from $(git rev-parse --short HEAD)"
 SHA=$(git -C "$TMP" rev-parse HEAD)
 echo "$SHA" > "$TMP/version.txt"
 git -C "$TMP" add version.txt
-git -C "$TMP" -c user.name="$(git config user.name)" -c user.email="$(git config user.email)" commit --quiet -m "Live: $SHA"
+git -C "$TMP" commit --quiet -m "Live: $SHA"
 git -C "$TMP" push --quiet origin live
 rm -rf "$TMP"
 echo "Released. guruvanikal.com will show build $SHA within about five minutes."
