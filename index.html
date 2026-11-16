@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Guruvanikal · ഗുരുവാണികൾ</title>
+  <meta name="description" content="Guruvanikal: the complete words of Navajyothi Sree Karunakara Guru, held in one lotus, reached by a journey outward to the universe or inward to the atom." />
+  <meta name="theme-color" content="#0a0206" />
+  <meta name="author" content="Gurudath Sadanandan and NAMA" />
+  <meta name="copyright" content="© 2026 Gurudath Sadanandan. All rights reserved." />
+  <link rel="icon" type="image/svg+xml" href="logo.svg" />
+  <script type="module" crossorigin src="./assets/index-CEPQpS8B.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-GMOmEvds.css">
+</head>
+<body>
+  <canvas id="gl"></canvas>
+
+  <section id="intro">
+    <div class="intro-in">
+      <h1 class="wordmark">GURUVANIKAL</h1>
+      <p class="om">ഗുരുവാണികൾ</p>
+      <p class="of">The words of Navajyothi Sree Karunakara Guru</p>
+      <p class="count" id="count">Opening the Guruvanikal…</p>
+      <div class="ways">
+        <button id="out" class="gold">Journey outward<small>into the vast</small></button>
+        <button id="in" class="gold">Journey inward<small>into the subtle</small></button>
+      </div>
+      <div class="ways more">
+        <button id="up">Smallest to vastest<small>nucleus to multiverse</small></button>
+        <button id="down">Vastest to smallest<small>multiverse to nucleus</small></button>
+        <button id="roam">As consciousness<small>move freely through every world</small></button>
+      </div>
+      <p class="path">Many ways to the same Light</p>
+      <label class="mins">Time for the journey <select id="minsIntro"></select></label>
+      <button id="skip" class="quiet" disabled>Go straight to the Lotus</button>
+      <p class="credit">An offering by Gurudath Sadanandan and NAMA</p>
+      <p class="copy">© 2026 Gurudath Sadanandan. All rights reserved.</p>
+    </div>
+  </section>
+
+  <div id="hud" hidden>
+    <div id="realm"><span></span><b></b><i></i><em></em></div>
+    <div id="layer"><b></b><span></span></div>
+    <div id="say"><p></p><span></span></div>
+    <nav id="rail" aria-label="Stations"></nav>
+    <div id="hint">Scroll, swipe or press ↓ to travel</div>
+  </div>
+  <div id="fly" hidden>
+    <button id="flyBack" aria-label="Move back">▼</button>
+    <button id="flyFwd" aria-label="Move forward">▲</button>
+  </div>
+
+  <header id="bar" hidden>
+    <div class="brand"><img src="logo.svg" alt="" /><b class="wordmark">GURUVANIKAL</b><span class="mlt">ഗുരുവാണികൾ</span></div>
+    <div class="tools">
+      <button data-open="years">Years</button>
+      <button data-open="search">Search</button>
+      <button data-open="nama">Ask NAMA</button>
+      <a id="speak" class="btn gold" target="_blank" rel="noopener">Speak with NAMA</a>
+      <button id="med" title="Rest within the AUM and look out at the whole sky">ॐ Meditate in AUM</button>
+      <button id="space">✦ Cosmos</button>
+      <button id="rot" title="Turn the view slowly, or keep it still">⟳ Turning</button>
+      <button id="goOut" title="Journey outward, into the vast">Outward</button>
+      <button id="goIn" title="Journey inward, into the subtle">Inward</button>
+    </div>
+  </header>
+  <div id="legend" hidden>Touch any petal to read a Guruvani · the golden crown holds the 1,001 sayings · the first white petals are the years · touch the AUM at the centre to speak with NAMA · drag to look around, scroll or pinch to travel</div>
+
+  <div id="sound" hidden>
+    <div id="sndPanel" hidden>
+      <h4>The journey</h4>
+      <label>Time for the journey <select id="mins"></select></label>
+      <label id="minsOwn" hidden>Minutes <input type="number" id="minsNum" min="1" max="240" step="1" /></label>
+      <div class="rowb"><button id="pause">Pause</button><span id="left"></span></div>
+
+      <h4>Consciousness</h4>
+      <div class="rowb"><button id="freeBtn">Move freely</button><span class="fine">or press C</span></div>
+      <label>Speed of movement <input type="range" id="sens" min="0" max="100" /></label>
+      <p class="fine">Scroll to move toward where the pointer is; drag to look around. Keys: W A S D or the arrows, Space to rest. On a phone: drag to look, pinch or hold ▲ ▼ to move. Go into the heart of a world to enter the smaller world within it; leave it far behind to reach the greater one. Both ways end in the Light.</p>
+
+      <h4>Sound</h4>
+      <label>Frequencies
+        <select id="sndKind">
+          <option value="auto">Follow the journey</option>
+          <option value="one">One frequency</option>
+          <option value="seq">Several, in my order</option>
+          <option value="none">None · silence, for the eyes only</option>
+        </select>
+      </label>
+      <label id="oneRow" hidden>Frequency <select id="sndMode"></select></label>
+      <div id="seqRow" hidden><div id="seqChips"></div><p class="fine">Touch the states in the order you want them. They share the time of the journey equally.</p></div>
+      <label>Volume <input type="range" id="sndVol" min="0" max="100" /></label>
+      <p id="sndNow"></p>
+      <label class="line"><input type="checkbox" id="dark" /> Eyes closed · darken the picture, sound only</label>
+      <p class="fine">A slow beat between the two ears, on the tone of OM. It needs headphones.</p>
+
+      <h4>The sky now</h4>
+      <label class="line"><input type="checkbox" id="names" checked /> Names in the sky</label>
+      <p id="skyNow" class="fine"></p>
+
+      <div class="rowb"><button id="hideAll">Hide everything</button><span class="fine">or press H · touch the screen to bring it back</span></div>
+    </div>
+    <button id="sndBtn" title="Journey, consciousness, sound and sky">☰ <span></span></button>
+  </div>
+
+  <div id="muse" aria-live="polite"><p></p><span></span></div>
+  <p id="copy" hidden>© 2026 Gurudath Sadanandan</p>
+
+  <div id="tip"></div>
+  <aside id="side" class="panel left" hidden></aside>
+  <aside id="reader" class="panel right" hidden></aside>
+
+</body>
+</html>
