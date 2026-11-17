@@ -82,6 +82,12 @@ In the same panel: follow the journey (the table above), one frequency held thro
 the traveller's own order (they share the time of the journey equally), or none at all, for a journey
 of the eyes only. "Eyes closed" darkens the picture for a journey of sound only.
 
+### The Prayer Song
+
+A song to God and the Guru by Gurudath Sadanandan (`src/media/prayer-song.mp3`). It never plays by
+itself: **♫ Prayer Song** in the top bar at the lotus, or the row in the ☰ panel, starts and pauses it.
+While it plays the tones of the journey rest; they return when it ends or is paused.
+
 ### Consciousness: moving freely
 
 **Move freely** (or the C key, or "As consciousness" on the first screen) frees the view from the path.

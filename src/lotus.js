@@ -61,7 +61,7 @@ export function createLotus(index, nSay) {
         p *= 1.0 + vHov*0.9;
         mat4 im = modelMatrix * instanceMatrix;
         vec4 wp = im * vec4(p, 1.0);
-        wp.xz *= mix(0.3, 1.0, b);
+        wp.xz *= mix(0.22, 1.0, b);
         wp.y += vHov*0.9 + vSel*0.3;
         vR = length(wp.xz);
         vN = normalize(mat3(im) * normal); vW = wp.xyz;
@@ -125,12 +125,14 @@ export function createLotus(index, nSay) {
   // the edge of the heart of small petals, so no gap ever opens between them.
   const big = lotusPetalGeometry(LOW ? 12 : 18, LOW ? 24 : 36);
   const yearMeshes = [], whorls = [];
-  const uB = { value: 0 }, uK = { value: 0.3 };              // how far the flower has opened; how wide its heart is
-  const bigMat = (w, start) => new THREE.ShaderMaterial({
+  const uB = { value: 0 }, uK = { value: 0.22 };              // how far the flower has opened; how wide its heart is
+  const bigMat = (w, start, alt, rcF) => new THREE.ShaderMaterial({
     side: THREE.DoubleSide,
     uniforms: { uTime: G.uTime, uOn: { value: 0 }, uB, uK, uRing: { value: w.ring }, uStart: { value: start }, uLift: { value: w.lift }, uClosed: { value: w.closed },
-      uZc: { value: w.zc }, uReflex: { value: w.reflex }, uCurl: { value: w.curl }, uSc: { value: w.sc }, uRise: { value: w.rise }, uWhite: W },
-    vertexShader: /* glsl */ `uniform float uTime, uB, uK, uOn, uRing, uStart, uLift, uClosed, uZc, uReflex, uCurl, uSc, uRise; varying vec2 vUv; varying vec3 vN, vW; varying float vO;
+      uZc: { value: w.zc }, uReflex: { value: w.reflex }, uCurl: { value: w.curl }, uSc: { value: w.sc }, uRise: { value: w.rise },
+      uAlt: { value: alt }, uCupK: { value: w.cupK }, uRcF: { value: rcF }, uRc: { value: w.rc }, uL: { value: w.L }, uWide: { value: w.wide }, uWhite: W },
+    vertexShader: /* glsl */ `uniform float uTime, uB, uK, uOn, uRing, uStart, uLift, uClosed, uZc, uReflex, uCurl, uSc, uRise, uAlt, uCupK, uRcF, uRc, uL, uWide;
+      varying vec2 vUv; varying vec3 vN, vW; varying float vO;
       void main(){
         vUv = uv; vec3 p = position; vec3 n = normal;
         float x = clamp((uB - uStart)/0.52, 0.0, 1.0);
@@ -138,15 +140,26 @@ export function createLotus(index, nSay) {
         vO = o;
         float a = (uv.x - 0.5)*2.0, v = uv.y;
         p.z *= mix(mix(min(uZc*1.8, 1.0), uZc, smoothstep(0.0, 0.35, v)), 1.0, o);   // furled narrow in the bud, broad at its foot so the bud is closed
-        p.y += (1.0 - o)*(0.2*a*a*sin(3.14159*pow(v, 0.8)) + uCurl*pow(v, 2.5));   // curled round; swelling, then drawn in to the shared point
+        // In the bud each petal bends across exactly as much as the round bud it wraps (no ridges),
+        // swells, and is drawn in so that its point meets the others.
+        // the cup of the petal: deep in the inner whorls, gentle in the outer ones, so that each layer rests
+        // on the one beneath without its raised edges passing through it; none at all in the closed bud
+        p.y -= (1.0 - mix(0.0, uCupK, o))*0.2*a*a*sin(3.14159*min(v*1.15, 1.0))*(1.0 - 0.5*v);
+        float zL = p.z*uWide;
+        float reff = max(1.5, (uRc + 2.5*sin(3.14159*min(v*1.4, 1.0)))*(1.0 - 0.95*v*v));
+        p.y += (1.0 - o)*(zL*zL*uL*uSc/(2.0*reff) + uCurl*pow(v, 2.5));
+        // Each petal is turned very slightly on its own length, so that it lies over the neighbour on
+        // one side and under the one on the other, as the petals of a real lotus do; they never cut through.
+        p.y += zL*mix(0.05, 0.13, o);
         p.y -= o*o*uReflex*v*v*v;                                    // fully open, the point relaxes backward
-        float ang = (1.0 - o)*(uClosed - uLift) + sin(uTime*0.4 + modelMatrix[3].x)*0.018*v*o + uOn*0.1;
+        float ang = (1.0 - o)*(uClosed - uLift) + o*uAlt*0.07 + sin(uTime*0.4 + modelMatrix[3].x)*0.018*v*o + uOn*0.1;
         float cs = cos(ang), sn = sin(ang);
         p.xy = vec2(p.x*cs - p.y*sn, p.x*sn + p.y*cs); n.xy = vec2(n.x*cs - n.y*sn, n.x*sn + n.y*cs);
         p *= mix(uSc, 1.0, o);
         vec4 wp = modelMatrix*vec4(p, 1.0);
-        wp.xz -= modelMatrix[3].xz*(1.0 - uK);                       // the base rests on the edge of the heart
-        wp.y += uRise*(1.0 - uK)/0.7;                                // and all the whorls rise from one level until the flower is open
+        float s = clamp((uK - 0.22)/0.78, 0.0, 1.0);
+        wp.xz -= modelMatrix[3].xz*(1.0 - mix(uRcF, 1.0, s));        // the base rests round the edge of the heart
+        wp.y += uRise*(1.0 - s);                                     // and all the whorls rise from one level until the flower is open
         vW = wp.xyz; vN = normalize(mat3(modelMatrix)*n);
         gl_Position = projectionMatrix*viewMatrix*wp;
       }`,
@@ -180,25 +193,27 @@ export function createLotus(index, nSay) {
   const WHORL = [[NY, RIM - 3.5, 24, 0.5, 0.62, 0.2, 0.4, 0.0], [NY, RIM - 1.5, 32, 0.33, 0.6, -1.5, 0.27, 0.035],
     [20, RIM + 0.5, 40, 0.17, 0.64, -3.4, 0.14, 0.06], [15, RIM + 1.5, 46, 0.04, 0.7, -5.2, 0.01, 0.09]];
   WHORL.forEach(([n, r, L, lift, wide, dy, opens, reflex], ring) => {
-    // the bud: base at the edge of the gathered heart; leaning in until the points meet over the centre;
-    // narrowed just enough that the petals of the whorl close round it, overlapping
-    // Each petal leaves its base leaning a little outward, swells, and curves in so that its point
-    // meets the others over the centre: a teardrop. The inner whorls are smaller in the bud and lie
-    // nested inside the outer ones, which alone are seen.
-    const sc = [0.83, 0.78, 0.75, 0.8][ring], rc = r * 0.3, Lc = L * sc, A = 0.2;
+    // The bud: each whorl a little outside the one within it, all round the gathered heart. Each petal
+    // leaves its base leaning a little outward, swells, and curves in so that its point meets the
+    // others over the centre: a teardrop. The inner whorls are smaller in the bud and lie nested inside
+    // the outer ones, which alone are seen. In each whorl the petals alternate, one a little inside and
+    // more upright, the next a little outside, so that they lie over one another and never cross.
+    const sc = [0.86, 0.84, 0.84, 0.92][ring], rc = RIM * 0.22 + 0.6 + ring * 1.3, Lc = L * sc, A = 0.2;
     const closed = Math.PI / 2 - A;
     const curl = (Math.sin(A) + (rc - 0.6) / Lc) / Math.cos(A) - 0.25;      // the inward bend that brings the point to the centre
     const zc = THREE.MathUtils.clamp((1.7 * 2 * Math.PI * rc) / (n * 2 * 0.54 * Lc * wide), 0.1, 1);
     const rise = (0.0026 * (RIM - 3.5) ** 2 + 0.2) - (0.0026 * r * r + dy);
-    const w = { ring, lift, closed, zc, reflex, curl, sc, rise };
+    const cupK = [1.0, 0.5, 0.36, 0.28][ring];
+    const w = { ring, lift, closed, zc, reflex, curl, sc, rise, rc, L, wide, cupK };
     for (let k = 0; k < n; k++) {
       const th = ((k + (ring % 2) * 0.5) / n) * Math.PI * 2 - Math.PI / 2;
-      const rr = r + (k % 2) * 0.35;                                         // alternate petals overlap, never cut through each other
-      const mesh = new THREE.Mesh(big, bigMat(w, opens + (Math.random() - 0.5) * 0.05));
-      mesh.position.set(Math.cos(th) * rr, 0.0026 * r * r + dy, Math.sin(th) * rr);
+      const alt = k % 2;
+      const rr = r - alt * 1.2;
+      const mesh = new THREE.Mesh(big, bigMat(w, opens + (Math.random() - 0.5) * 0.05, alt, (rc - alt * 0.45) / rr));
+      mesh.position.set(Math.cos(th) * rr, 0.0026 * r * r + dy + alt * 0.5, Math.sin(th) * rr);
       qy.setFromAxisAngle(Y, -th); qz.setFromAxisAngle(Z, lift);
       mesh.quaternion.copy(qy).multiply(qz);
-      mesh.scale.set(L, L, L * wide);
+      mesh.scale.set(L, L, L * wide).multiplyScalar(alt ? 0.97 : 1);
       group.add(mesh); whorls.push(mesh);
       if (ring === 0) {
         mesh.userData.year = k;
@@ -211,6 +226,34 @@ export function createLotus(index, nSay) {
       }
     }
   });
+  // The calyx: the smooth round cup the bud rises from, so that its underside is one soft curve and
+  // the feet of the petals are never seen. As the flower opens it widens and settles beneath it.
+  const calyxPts = []; for (let i = 0; i <= 20; i++) { const t = (i / 20) * Math.PI / 2; calyxPts.push(new THREE.Vector2(Math.sin(t), -Math.cos(t))); }
+  const budTop = 0.0026 * (RIM - 3.5) ** 2 + 0.2 + 4.2, budR = RIM * 0.22 + 0.6 + 3 * 1.3 + 1.3;
+  const calyx = new THREE.Mesh(new THREE.LatheGeometry(calyxPts, 96), new THREE.ShaderMaterial({
+    side: THREE.DoubleSide, uniforms: { uK, uWhite: W },
+    vertexShader: /* glsl */ `uniform float uK; varying vec3 vN, vW; varying float vY;
+      void main(){
+        float s = clamp((uK - 0.22)/0.78, 0.0, 1.0);
+        float R = mix(${budR.toFixed(2)}, ${(RIM - 2).toFixed(2)}, s), D = mix(9.5, 5.0, s), top = mix(${budTop.toFixed(2)}, 0.3, s);
+        vY = -position.y;
+        vec3 p = vec3(position.x*R, top + position.y*D, position.z*R);
+        vec4 w = modelMatrix*vec4(p, 1.0); vW = w.xyz;
+        vN = normalize(mat3(modelMatrix)*vec3(normal.x/R, normal.y/D, normal.z/R));
+        gl_Position = projectionMatrix*viewMatrix*w;
+      }`,
+    fragmentShader: /* glsl */ `uniform float uWhite; varying vec3 vN, vW; varying float vY;
+      void main(){
+        vec3 N = normalize(vN), V = normalize(cameraPosition - vW); if (dot(N, V) < 0.0) N = -N;
+        // pearl white where it meets the petals, a breath of pale green toward the stem
+        vec3 base = mix(vec3(1.0, 0.985, 0.97), vec3(0.8, 0.88, 0.74), smoothstep(0.15, 1.0, vY));
+        float dif = 0.55 + 0.35*max(dot(N, normalize(vec3(0.3, 1.0, 0.4))), 0.0);
+        float fr = pow(max(1.0 - abs(dot(N, V)), 0.0), 2.6);
+        vec3 c = base*dif*mix(0.82, 1.2, uWhite) + vec3(1.0, 0.95, 0.9)*fr*0.18;
+        gl_FragColor = vec4(c, 1.0);
+      }`,
+  }));
+  group.add(calyx);
   // the receptacle: the pale body of the flower under the small petals, so that nothing shows between them
   const bowlPts = []; for (let i = 0; i <= 24; i++) { const r = (i / 24) * (RIM + 1); bowlPts.push(new THREE.Vector2(r, 0.0026 * r * r - 0.7)); }
   const bowl = new THREE.Mesh(new THREE.LatheGeometry(bowlPts, 96), new THREE.ShaderMaterial({
@@ -326,7 +369,7 @@ export function createLotus(index, nSay) {
     setWithin(on) { aum.visible = !on; halo.visible = !on; },
     // b: 0 a closed bud, 1 fully open. The heart of small petals opens with the innermost whorl.
     setBloom(b) {
-      const bs = Math.min(1, Math.max(0, (b - 0.3) / 0.7)), k = Math.min(1, Math.max(0, bs * 1.7 - 0.7)), K = 0.3 + 0.7 * k * k * (3 - 2 * k);
+      const bs = Math.min(1, Math.max(0, (b - 0.3) / 0.7)), k = Math.min(1, Math.max(0, bs * 1.7 - 0.7)), K = 0.22 + 0.78 * k * k * (3 - 2 * k);
       uni.uBloom.value = bs; uB.value = b; uK.value = K; bowl.scale.set(K, 1, K);
       const lo = Math.min(1, Math.max(0, (b - 0.93) * 14)); yearMeshes.forEach((mm) => { mm.userData.label.material.opacity = 0.95 * lo; });
     },

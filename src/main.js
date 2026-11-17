@@ -23,6 +23,7 @@ import { DB, loadCore } from './data.js';
 import { initUI, NAMA_AI_URL } from './ui.js';
 import { createSound, STATES, stateName } from './sound.js';
 import { skyNow, RASHIS, NAKSHATRAS, GRAHAS } from './ephem.js';
+import SONG_URL from './media/prayer-song.mp3?url';
 
 const $ = (s) => document.querySelector(s);
 const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
@@ -256,7 +257,7 @@ function go(dir, at) {
   $('#intro').classList.add('gone');
   S.mode = 'journey'; S.auto = true; S.hold = 0; S.last = null; S.paused = false; $('#pause').textContent = 'Pause'; $('#pause').classList.remove('on');
   S.p = S.tp = at || 0; S.t0 = performance.now();
-  $('#sound').hidden = false; if (!S.muted) { sound.toggle(sndKind.value !== 'none'); syncSound(); }
+  $('#sound').hidden = false; if (!S.muted && song.paused) { sound.toggle(sndKind.value !== 'none'); syncSound(); }
   chrome(); wake();
   hint.classList.remove('off'); setTimeout(() => hint.classList.add('off'), 9000);
 }
@@ -533,12 +534,38 @@ function syncSound() {
 }
 sndBtn.onclick = () => { sndPanel.hidden = !sndPanel.hidden; if (!sndPanel.hidden) skyText(); };
 sndKind.onchange = applyKind;
-sndVol.oninput = () => sound.setVolume(sndVol.value / 100);
+sndVol.oninput = () => { sound.setVolume(sndVol.value / 100); song.volume = Math.max(0.15, sndVol.value / 100); };
 sndMode.onchange = applyKind;
 addEventListener('pointerdown', (e) => { if (!sndPanel.hidden && !e.target.closest('#sound')) sndPanel.hidden = true; });
 drawSeq(); applyKind();
 const darkBox = $('#dark'); let dark = false;
 darkBox.onchange = () => { dark = darkBox.checked; };
+
+// ------------------------------------------------------------------ the Prayer Song
+// A song to God and the Guru by Gurudath Sadanandan. It never plays by itself: only when its button is
+// pressed. While it plays the tones of the journey rest, and they return when it ends or is paused.
+const song = new Audio(); song.preload = 'none';
+let toneWasOn = false;
+function syncSong() {
+  const on = !song.paused;
+  for (const b of [$('#song'), $('#song2')]) { b.classList.toggle('on', on); }
+  $('#song').textContent = on ? '♫ Pause song' : '♫ Prayer Song';
+  $('#song2').textContent = on ? '♫ Pause the Prayer Song' : '♫ Play the Prayer Song';
+}
+function toggleSong() {
+  if (song.paused) {
+    if (!song.src) song.src = SONG_URL;
+    toneWasOn = sound.on; if (toneWasOn) { sound.toggle(false); syncSound(); }
+    song.volume = Math.max(0.15, sound.volume);
+    song.play().catch(() => {});
+  } else song.pause();
+}
+function songRest() { if (toneWasOn && !S.muted && sndKind.value !== 'none') { sound.toggle(true); syncSound(); } toneWasOn = false; syncSong(); }
+song.addEventListener('play', syncSong);
+song.addEventListener('pause', songRest);
+song.addEventListener('ended', () => { song.currentTime = 0; });
+song.addEventListener('timeupdate', () => { if (!sndPanel.hidden) $('#songAt').textContent = `${clockText(song.currentTime)} / ${clockText(song.duration || 182)}`; });
+$('#song').onclick = toggleSong; $('#song2').onclick = toggleSong;
 
 // ------------------------------------------------------------------ the sky at this moment
 const namesBox = $('#names');
