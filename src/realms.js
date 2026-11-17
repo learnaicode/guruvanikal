@@ -47,9 +47,10 @@ function earth() {
         float day = dot(N, uSun); float lit = smoothstep(-0.12, 0.22, day);
         vec3 c = mix(surf, vec3(1.0), cl*0.9) * (0.02 + 1.15*max(day, 0.0));
         c += vec3(1.0, 0.9, 0.7) * pow(max(dot(reflect(-uSun, N), Vw), 0.0), 70.0) * (1.0 - land)*(1.0 - cl) * 0.9;
-        float city = step(0.7, fbm3(p*130.0)) * step(0.55, fbm3(p*9.0 + 2.0)) * land * (1.0 - smoothstep(0.7, 0.85, lat));
+        float cn = fbm3(p*130.0), cw = fwidth(cn)*1.5 + 0.004;           // the lights of towns, smoothed to the pixel so they never sparkle
+        float city = smoothstep(0.7 - cw, 0.7 + cw, cn) * (1.0 - smoothstep(0.06, 0.3, cw)*0.6) * smoothstep(0.53, 0.57, fbm3(p*9.0 + 2.0)) * land * (1.0 - smoothstep(0.7, 0.85, lat));
         c += vec3(1.0, 0.7, 0.32) * city * (1.0 - lit) * 0.4 * (1.0 - cl);
-        float rim = pow(1.0 - max(dot(N, Vw), 0.0), 2.6);
+        float rim = pow(max(1.0 - max(dot(N, Vw), 0.0), 0.0), 2.6);
         c += vec3(0.25, 0.55, 1.0) * rim * (0.12 + lit) * 0.9;
         c += vec3(1.0, 0.45, 0.2) * rim * smoothstep(0.25, 0.0, abs(day)) * 0.5;                       // dawn along the edge
         gl_FragColor = vec4(c, 1.0);
@@ -63,7 +64,7 @@ function earth() {
     fragmentShader: `varying vec3 vW, vN; uniform vec3 uSun;
       void main(){ vec3 Vw = normalize(cameraPosition - vW); float k = abs(dot(vN, Vw));
         float lit = smoothstep(-0.25, 0.3, dot(normalize(vW), uSun));
-        gl_FragColor = vec4(vec3(0.22, 0.5, 1.0) * pow(1.0 - k, 0.6) * pow(k, 1.6) * 2.2 * (0.08 + lit), 1.0); }`,
+        gl_FragColor = vec4(vec3(0.22, 0.5, 1.0) * pow(max(1.0 - k, 0.0), 0.6) * pow(k, 1.6) * 2.2 * (0.08 + lit), 1.0); }`,
   }));
   group.add(air);
   // aurora near the poles, in the thermosphere
@@ -132,7 +133,7 @@ function solar() {
       fragmentShader: `varying vec3 vN, vW, vP; uniform vec3 uCol; uniform float uBands; ${NOISE}
         void main(){ vec3 L = normalize(-vW); float d = max(dot(normalize(vN), L), 0.0);
           float b = mix(1.0, 0.72 + 0.28*sin(vP.y*9.0 + fbm(vP.xy*2.0)*3.0), uBands);
-          vec3 c = uCol*b*(0.03 + d*1.25) + uCol*pow(1.0 - max(dot(normalize(vN), normalize(cameraPosition - vW)), 0.0), 3.0)*0.25*d;
+          vec3 c = uCol*b*(0.03 + d*1.25) + uCol*pow(max(1.0 - max(dot(normalize(vN), normalize(cameraPosition - vW)), 0.0), 0.0), 3.0)*0.25*d;
           gl_FragColor = vec4(c, 1.0); }`,
     }));
     group.add(m);
@@ -285,7 +286,7 @@ function multiverse() {
       void main(){ float nd = abs(dot(normalize(vN), normalize(vV)));
         vec3 col = aur(vS.x + 0.12*sin(uTime*0.1 + vS.y*20.0));
         float web = pow(fbm3(vP*3.2 + vS.z*50.0 + uTime*0.04), 3.0);
-        vec3 c = col*pow(1.0 - nd, 2.4)*0.9 + col*web*nd*1.5 + vec3(1.0, 0.92, 0.8)*pow(nd, 10.0)*0.1;
+        vec3 c = col*pow(max(1.0 - nd, 0.0), 2.4)*0.9 + col*web*nd*1.5 + vec3(1.0, 0.92, 0.8)*pow(nd, 10.0)*0.1;
         gl_FragColor = vec4(c*0.3, 1.0); }`,
   }), N);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = V(), v = V();
@@ -350,7 +351,7 @@ function cell() {
         vec4 mv = viewMatrix*modelMatrix*instanceMatrix*vec4(p, 1.0); mv.xy += vec2(sin(uTime*0.3 + aSeed.z*40.0), cos(uTime*0.25 + aSeed.w*40.0))*1.2;
         vV = -mv.xyz; vN = normalize(mat3(viewMatrix*modelMatrix*instanceMatrix)*normal); gl_Position = projectionMatrix*mv; }`,
     fragmentShader: `varying vec3 vN, vV, vP; varying float vS;
-      void main(){ float nd = abs(dot(normalize(vN), normalize(vV))); float fr = pow(1.0 - nd, 2.0);
+      void main(){ float nd = abs(dot(normalize(vN), normalize(vV))); float fr = pow(max(1.0 - nd, 0.0), 2.0);
         vec3 col = vS < 0.45 ? vec3(1.0, 0.45, 0.25) : vS < 0.8 ? vec3(0.3, 0.9, 0.75) : vec3(0.75, 0.5, 1.0);
         float folds = 0.6 + 0.4*sin(vP.x*14.0 + sin(vP.y*6.0)*2.0);                     // inner folds
         vec3 c = col*(0.1 + 0.25*folds*nd) + col*fr*1.1;
@@ -376,7 +377,7 @@ function cell() {
     uniforms: { uTime: G.uTime }, vertexShader: fresnelVert,
     fragmentShader: `varying vec3 vN, vV, vP; uniform float uTime; ${NOISE}
       void main(){ float nd = abs(dot(normalize(vN), normalize(vV))); float pores = smoothstep(0.55, 0.7, fbm3(vP*0.22 + uTime*0.03));
-        vec3 c = vec3(0.25, 0.1, 0.5)*(0.25 + 0.5*nd) + vec3(0.7, 0.5, 1.0)*pow(1.0 - nd, 2.0)*1.2 + vec3(1.0, 0.85, 0.7)*pores*0.9;
+        vec3 c = vec3(0.25, 0.1, 0.5)*(0.25 + 0.5*nd) + vec3(0.7, 0.5, 1.0)*pow(max(1.0 - nd, 0.0), 2.0)*1.2 + vec3(1.0, 0.85, 0.7)*pores*0.9;
         gl_FragColor = vec4(c, 1.0); }`,
   }));
   nuc.position.set(0, 0, -D - 40); group.add(nuc);
@@ -500,7 +501,7 @@ function nucleus() {
     fragmentShader: `varying vec3 vN, vV; varying float vK;
       void main(){ float nd = abs(dot(normalize(vN), normalize(vV)));
         vec3 col = vK < 0.5 ? vec3(1.0, 0.45, 0.4) : vec3(0.45, 0.65, 1.0);
-        gl_FragColor = vec4(col*(pow(1.0 - nd, 1.6)*0.9 + 0.07), 1.0); }`,
+        gl_FragColor = vec4(col*(pow(max(1.0 - nd, 0.0), 1.6)*0.9 + 0.07), 1.0); }`,
   }), N);
   const m = new THREE.Matrix4(), q = new THREE.Quaternion(), s = V(1, 1, 1);
   const quarkSeeds = [];

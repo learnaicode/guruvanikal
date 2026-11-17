@@ -33,7 +33,7 @@ export function createSeed() {
         float dif = max(dot(N, normalize(vec3(-0.4, 0.6, 0.7))), 0.0);
         float cellTex = 0.92 + 0.08*fbm(vP.xy*0.9 + uTime*0.03);      // the faint grain of a living thing
         vec3 c = uCol * cellTex * (0.42 + 0.62*dif);
-        c += uCol * pow(1.0 - max(dot(N, V), 0.0), 3.0) * 0.6;
+        c += uCol * pow(max(1.0 - max(dot(N, V), 0.0), 0.0), 3.0) * 0.6;
         // the light from behind catches the walls of the outline
         float glow = wall * (0.55 + 0.45*sin(uTime*0.8 + vP.y*0.4));
         float nearFig = smoothstep(11.0, 2.0, length(vP.xy - vec2(-1.2, -4.0)));
@@ -100,7 +100,7 @@ export function createSeed() {
     vertexShader: /* glsl */ `uniform float uTime; varying vec3 vN, vV; ${NOISE}
       void main(){ vec3 p = position * (1.0 + 0.035*sin(uTime*0.6 + position.y*0.5) + 0.03*sin(uTime*0.45 + position.x*0.6));
         vec4 mv = modelViewMatrix*vec4(p, 1.0); vV = -mv.xyz; vN = normalMatrix*normal; gl_Position = projectionMatrix*mv; }`,
-    fragmentShader: 'uniform vec3 uCol; varying vec3 vN, vV; void main(){ float f = pow(1.0 - abs(dot(normalize(vN), normalize(vV))), 3.2); gl_FragColor = vec4((uCol*1.2 + vec3(0.5, 0.25, 0.2))*f*0.3, 1.0); }',
+    fragmentShader: 'uniform vec3 uCol; varying vec3 vN, vV; void main(){ float f = pow(max(1.0 - abs(dot(normalize(vN), normalize(vV))), 0.0), 3.2); gl_FragColor = vec4((uCol*1.2 + vec3(0.5, 0.25, 0.2))*f*0.3, 1.0); }',
   }));
   group.add(membrane);
   const motes = createPoints(1600, () => { const u = Math.random() * 2 - 1, t = Math.random() * 6.283, r = 4 + Math.random() * 12, s = Math.sqrt(1 - u * u); return { p: [r * s * Math.cos(t), r * u, r * s * Math.sin(t) * 0.8 + 2] }; }, `

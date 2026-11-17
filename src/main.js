@@ -13,6 +13,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 import { G, LOW, createSky, FinalShader, PassageShader } from './gl.js';
 import { buildRealms } from './realms.js';
 import { createSeed } from './seed.js';
@@ -44,13 +45,18 @@ const sky = createSky();
 scene.add(sky);
 
 // the picture is drawn with several samples to each point, so the edges of the petals are smooth
-const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: LOW ? 0 : 4 }));
+const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: LOW ? 2 : 4 }));
 composer.setPixelRatio(renderer.getPixelRatio());
 composer.addPass(new RenderPass(scene, camera));
 // the passage between worlds: the world we leave is kept as a picture and closes or opens like an iris
-const snap = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, depthBuffer: true });
+// it is kept at the full size and smoothness of the picture itself, so nothing changes at the moment it takes over
+const snap = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, depthBuffer: true, samples: LOW ? 2 : 4 });
+// what was on the screen when a passage begins: the scene, with any passage still under way folded in
+let held = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, depthBuffer: false });
+let held2 = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, depthBuffer: false });
 const passage = new ShaderPass(PassageShader);
-passage.uniforms.tPrev.value = snap.texture;
+const passQuad = new FullScreenQuad(passage.material);
+passage.uniforms.tPrev.value = held.texture;
 composer.addPass(passage);
 const bloom = new UnrealBloomPass(new THREE.Vector2(innerWidth / 2, innerHeight / 2), 0.5, 0.7, 0.88);
 if (LOW) bloom.nMips = 4;
@@ -65,8 +71,8 @@ function resize() {
   camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix();
   G.uPx.value = renderer.domElement.height * 0.9;
   final.uniforms.uAspect.value = passage.uniforms.uAspect.value = camera.aspect;
-  const px = renderer.getPixelRatio() * 0.75;
-  snap.setSize(Math.round(innerWidth * px), Math.round(innerHeight * px));
+  const px = renderer.getPixelRatio();
+  for (const t of [snap, held, held2]) t.setSize(Math.round(innerWidth * px), Math.round(innerHeight * px));
 }
 addEventListener('resize', resize);
 resize();
@@ -131,22 +137,24 @@ function setFreedom() {
   controls.autoRotate = rotate; controls.autoRotateSpeed = 0.28;
 }
 
-// Arriving: we come out of the light at the centre of the lotus, rise from the opening bud and draw
-// back until the whole lotus is seen. It ends exactly where HOME is.
+// Arriving: out of the light, a closed lotus bud is seen, glowing from within. It opens as a lotus
+// opens, outer petals first, while the view rises slowly and draws round until the whole flower is
+// seen from above. It ends exactly where HOME is, so nothing moves when the journey hands over.
 const CORE = new THREE.Vector3(0, 13, 0);                // the AUM
 const tA = new THREE.Vector3(), tB = new THREE.Vector3(), tC = new THREE.Vector3(), tQ = new THREE.Quaternion(), tO = new THREE.Object3D();
+const BUD = new THREE.Vector3(0, 19, 0);
+const smoother = (x) => x * x * x * (x * (x * 6 - 15) + 10);
 function lotusPath(u, cam) {
-  const h = HOME(), e = ease(u);
-  const endD = h.pos.distanceTo(h.tgt), endPhi = Math.atan2(h.pos.z, h.pos.y - h.tgt.y);
-  const d = THREE.MathUtils.lerp(9.5, endD, e * e * (3 - 2 * e) * (0.35 + 0.65 * e));
-  const phi = THREE.MathUtils.lerp(0.04, endPhi, ease(Math.min(1, u * 1.15)));
-  const az = (1 - e) * 1.9;
-  const tgt = tA.copy(CORE).lerp(h.tgt, e);
+  const h = HOME(), e = smoother(clamp(u, 0, 1));
+  const endD = h.pos.distanceTo(h.tgt), endPhi = Math.acos(clamp((h.pos.y - h.tgt.y) / endD, -1, 1));
+  const d = THREE.MathUtils.lerp(76 * far(), endD, e);
+  const phi = THREE.MathUtils.lerp(1.22, endPhi, smoother(clamp(u * 1.1 - 0.05, 0, 1)));
+  const az = (1 - e) * 0.85;
+  const tgt = tA.copy(BUD).lerp(h.tgt, e);
   cam.position.set(tgt.x + Math.sin(phi) * Math.sin(az) * d, tgt.y + Math.cos(phi) * d, tgt.z + Math.sin(phi) * Math.cos(az) * d);
   cam.lookAt(tgt);
-  lotus.setBloom(sstep(0.04, 0.86, u));
+  lotus.setBloom(sstep(0.1, 0.9, u));
 }
-
 // the sky moves toward each world's colours instead of jumping to them
 const skyTo = { top: new THREE.Color(), bot: new THREE.Color(), glow: new THREE.Color(), dir: new THREE.Vector3(0, 0, -1), stars: 0, milk: 0, aur: 0, floor: 0.35 };
 function applySky(s, now) {
@@ -607,7 +615,13 @@ function frame() {
     // keep a picture of the world we are leaving, exactly as it was last seen
     if (shown) {
       camera.updateMatrixWorld(); sky.position.copy(camera.position);
-      renderer.setRenderTarget(snap); renderer.clear(); renderer.render(scene, camera); renderer.setRenderTarget(null);
+      renderer.setRenderTarget(snap); renderer.clear(); renderer.render(scene, camera);
+      // if a passage is still under way, the picture keeps it exactly as it was being shown
+      const pu = passage.uniforms, tunSave = pu.uTunnel.value;
+      pu.uTunnel.value = 0; pu.tDiffuse.value = snap.texture; pu.tPrev.value = held.texture;
+      renderer.setRenderTarget(held2); passQuad.render(renderer);
+      pu.uTunnel.value = tunSave; [held, held2] = [held2, held]; pu.tPrev.value = held.texture;
+      renderer.setRenderTarget(null);
       if (F.pending) { X.dir = F.pending.x; X.sec = 3.2; } else {
         const j = track.findIndex((r) => r.group === shown.group), fwd = j < 0 || k > j;
         X.dir = S.fromLotus ? -1 : ZOOM[S.dir] * (fwd ? 1 : -1); X.sec = S.fromLotus ? 4 : 3.6;

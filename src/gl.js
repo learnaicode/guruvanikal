@@ -77,7 +77,8 @@ export function createSky() {
       }
       float starLayer(vec3 d, float sc, float th){
         vec3 p = d*sc; vec3 i = floor(p); vec3 f = fract(p)-0.5; float h = hash31(i);
-        float s = smoothstep(0.16, 0.0, length(f)) * step(th, h);
+        float rad = max(0.16, length(fwidth(p))*0.9);                 // never finer than a pixel, or it would shimmer
+        float s = smoothstep(rad, 0.0, length(f)) * step(th, h) * (0.0256/(rad*rad));
         return s * (0.55 + 0.45*sin(uTime*1.7 + h*90.0));
       }
       void main(){
@@ -150,7 +151,10 @@ export function createPoints(count, seedFn, body, { size = 1, fns = '', uniforms
         ${body}
         vec4 mv = modelViewMatrix * vec4(p, 1.0);
         gl_Position = projectionMatrix * mv;
-        gl_PointSize = min(uSize * s * uPx / max(-mv.z, 0.1), ${maxPx.toFixed(1)});
+        float ps = min(uSize * s * uPx / max(-mv.z, 0.1), ${maxPx.toFixed(1)});
+        // a point smaller than about two pixels would flicker as it moves: it is drawn at that size, its light spread to match
+        if (ps < 2.2) { a *= ps*ps/4.84; ps = 2.2; }
+        gl_PointSize = ps;
         vA = a * smoothstep(0.5, 5.0, -mv.z); vC = c;
       }`,
     fragmentShader: /* glsl */ `
@@ -223,7 +227,7 @@ export const PassageShader = {
         // until it is a point of light, and the greater world that holds it is already there around
         // it, itself drawing back into place. Nothing is cut out and no edge is drawn: the smaller
         // world simply melts into the larger at its soft edge.
-        float k = exp(-3.6*t);                                       // the old world: 1 down to a point
+        float k = exp(-3.6*pow(t, 1.6));                             // the old world: 1 down to a point, setting off gently
         col = rush(tDiffuse, c / exp(1.15*uMix));                    // the new world: seen close, easing out to its true size
         vec3 old = rush(tPrev, c / k);
         float R = (corner + 0.16)*pow(k, 0.82);
@@ -231,6 +235,7 @@ export const PassageShader = {
         // at its soft edge only what is bright in the old world remains (its dark sky does not cover the new one)
         col = mix(col, max(col, old), (1.0 - smoothstep(R*0.5, R, r)) * fade);
         col = mix(col, old, (1.0 - smoothstep(R*0.16, R*0.62, r)) * fade);
+        col = mix(col, old, 1.0 - smoothstep(0.0, 0.3, t));          // the first moments are exactly the world we were in, then it lets go slowly
         col += vec3(1.0, 0.95, 0.85)*exp(-r*r/(R*R*0.35 + 0.0006))*0.35*smoothstep(0.55, 0.15, uMix)*smoothstep(0.0, 0.12, uMix);
       } else {
         // Inward: one unbroken going in. The world we leave grows past us and thins from the centre,
@@ -240,7 +245,7 @@ export const PassageShader = {
         vec3 old = rush(tPrev, c / M);
         float R = t*(corner + 0.3);
         float w = smoothstep(R*0.35, R + 0.02, r) * smoothstep(0.0, 0.3, uMix);
-        col = mix(col, old, w);
+        col = mix(col, old, max(w, 1.0 - smoothstep(0.0, 0.2, t)));
       }
       if (uTunnel > 0.0005) {
         // the tunnel: walls of flowing light and a brightness at the far end
@@ -256,7 +261,10 @@ export const PassageShader = {
         tc = mix(tc, vec3(2.2), uWhite*exp(-r*1.2));
         col = col*(1.0 - 0.6*uTunnel) + tc*uTunnel;
       }
-      gl_FragColor = vec4(col, 1.0);
+      // A safety net: a single invalid or endless value would be spread over the whole picture by the
+      // glow that follows, and the frame would go black. Such a pixel is quietly let go instead.
+      if (any(isnan(col)) || any(isinf(col))) col = vec3(0.0);
+      gl_FragColor = vec4(min(col, vec3(48.0)), 1.0);
     }`,
 };
 

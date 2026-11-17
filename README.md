@@ -45,14 +45,19 @@ to the same Light, after Kees Boeke's *Cosmic View*:
 | Multiverse | | deep delta, 1.5 Hz |
 | The Light: the lotus | The Light: the lotus | OM, 136.1 Hz |
 
+To check for flicker, load `tools/flicker-test.js` in the running site (copy it into `public/`, then
+`await import('/flicker-test.js')`) and call `__flicker('out', [0.88, 1.88])`: it plays each stretch frame by
+frame and reports any jump in brightness and the share of pixels that flash on and off.
+
 Between worlds the motion never stops. Going outward, the world being left keeps drawing back until it
 is a point of light inside the greater world, which is itself drawing back into place; going inward the
 world being left grows past and thins from the centre, where the finer world is already rising
 (`PassageShader` in `src/gl.js`). No shape or edge is drawn. Every world is drawn once, unseen, while the
 first screen shows, so nothing halts when it first appears. The aurora is walked through in depth, layer
 behind layer, not painted on the sky. The last passage ends in white: the journey comes out of the AUM at
-the centre of the lotus, the lotus opens from its bud, whorl by whorl and petal after petal, and the view
-draws back until the whole lotus is seen.
+the centre of the lotus, a closed lotus bud glows among the stars and opens as a lotus
+opens: the outer petals bend back first, the inner ones last, uncovering the AUM, while the view rises
+until the whole flower is seen.
 
 The sound (`src/sound.js`) is made in the browser and tuned to OM at 136.1 Hz: a drone, two binaural
 pairs (on OM and on its fifth), a slow surf of pink noise, and an A-U-M voice at the lotus. The beat
